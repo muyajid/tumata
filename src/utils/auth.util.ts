@@ -1,0 +1,23 @@
+import bcrypt from "bcrypt";
+import { Request } from "express";
+
+export const createUserPassword = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+const SALT_ROUNDS = Number(process.env.SALT_ROUNDS) || 10;
+
+export const hashPassword = async (password: string): Promise<string> => {
+  return bcrypt.hash(password, SALT_ROUNDS);
+};
+
+export const comparePassword = async (
+  password: string,
+  hashedPassword: string,
+): Promise<boolean> => {
+  return bcrypt.compare(password, hashedPassword);
+};
+
+export interface AuthRequest extends Request {
+  user?: any;
+}
