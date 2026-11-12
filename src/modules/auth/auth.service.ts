@@ -6,6 +6,7 @@ import { createError } from "../../exceptions/error.exception";
 import { comparePassword } from "../../utils/auth.util";
 import { LoginReq, LoginRes } from "./auth.dto";
 import { createAuthToken } from "../../utils/token.util";
+import { UserRes } from "../user/user.dto";
 
 export const authLogin = async (py: LoginReq): Promise<LoginRes> => {
   try {
@@ -37,6 +38,26 @@ export const authLogin = async (py: LoginReq): Promise<LoginRes> => {
     };
   } catch (err: any) {
     logger.error(err, "Login error");
+    throw err;
+  }
+};
+
+export const authCurrentUser = async (id: string): Promise<UserRes> => {
+  try {
+    const [user] = await db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        phone: users.phone,
+        role: users.role,
+      })
+      .from(users)
+      .limit(1);
+
+    return user;
+  } catch (err: any) {
+    logger.error(err, "Get current user error");
     throw err;
   }
 };

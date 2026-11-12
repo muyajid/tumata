@@ -1,6 +1,7 @@
 import logger from "../configs/logger";
 import { UserRole } from "../modules/user/user.dto";
 import jwt from "jsonwebtoken";
+import { AuthRequest } from "./auth.util";
 
 interface UserPayload {
   id: string;
@@ -30,4 +31,8 @@ export const verifAuthToken = (token: string): UserPayload | null => {
     logger.error(err, "Error during verif auth token");
     return null;
   }
+};
+
+export const getUserPayload = (req: AuthRequest): UserPayload => {
+  return req.user;
 };

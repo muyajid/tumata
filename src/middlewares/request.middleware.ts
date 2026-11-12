@@ -11,7 +11,7 @@ export const requestLogMiddleware = (
       endpoint: `${req.method} ${req.originalUrl}`,
       body: req.body,
     },
-    "incoming request",
+    "Incoming request",
   );
 
   next();
