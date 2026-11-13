@@ -15,12 +15,22 @@ export const parseXLSXToJson = <T>(source: string | Buffer): T[] => {
   });
 };
 
-export const validateRows = <T>(data: T[], schema: ObjectSchema) => {
+export const validateRows = <T>(data: T[], schema: ObjectSchema): void => {
+  const errors: string[] = [];
+
   data.forEach((item, index) => {
-    const { error } = schema.validate(item);
+    const { error } = schema.validate(item, {
+      abortEarly: false,
+    });
 
     if (error) {
-      throw createError(400, `Baris ke ${index + 2} ${error.message}`);
+      error.details.forEach((detail) => {
+        errors.push(`Baris ${index + 2}: ${detail.message}`);
+      });
     }
   });
+
+  if (errors.length > 0) {
+    throw createError(400, "Validasi data pengguna gagal", errors);
+  }
 };
