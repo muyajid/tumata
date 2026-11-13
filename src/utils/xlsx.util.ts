@@ -25,7 +25,7 @@ export const validateRows = <T>(data: T[], schema: ObjectSchema): void => {
 
     if (error) {
       error.details.forEach((detail) => {
-        errors.push(`Baris ${index + 2}: ${detail.message}`);
+        errors.push(`Baris ${index + 2}: Kolom ${detail.message}`);
       });
     }
   });
@@ -33,4 +33,19 @@ export const validateRows = <T>(data: T[], schema: ObjectSchema): void => {
   if (errors.length > 0) {
     throw createError(400, "Validasi data pengguna gagal", errors);
   }
+};
+
+export const exporToXLSX = <T>(
+  data: T[],
+  sheetName: string = "Data pengguna",
+): Buffer => {
+  const workBook = XLSX.utils.book_new();
+  const workSheet = XLSX.utils.json_to_sheet(data);
+
+  XLSX.utils.book_append_sheet(workBook, workSheet, sheetName);
+
+  return XLSX.write(workBook, {
+    type: "buffer",
+    bookType: "xlsx",
+  });
 };

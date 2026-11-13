@@ -1,4 +1,4 @@
-import { asc, count, inArray, or } from "drizzle-orm";
+import { asc, count, eq, inArray, or } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import { users } from "../../db/schema/user.schema";
@@ -10,10 +10,16 @@ import {
   GetUserReq,
   GetUserRes,
   ImportUserRes,
+  PatchUserReq,
   postUserSchema,
   UserRes,
+  UserRole,
 } from "./user.dto";
-import { parseXLSXToJson, validateRows } from "../../utils/xlsx.util";
+import {
+  exporToXLSX,
+  parseXLSXToJson,
+  validateRows,
+} from "../../utils/xlsx.util";
 
 export const createUser = async (py: CreateUserReq): Promise<UserRes> => {
   try {
@@ -232,6 +238,77 @@ export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
     };
   } catch (err: any) {
     logger.error(err, "Import user error");
+    throw err;
+  }
+};
+
+export const exportUsers = async (role?: UserRole): Promise<Buffer> => {
+  try {
+    const query = db
+      .select({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        phone: users.phone,
+        role: users.role,
+      })
+      .from(users);
+
+    const data = role ? await query.where(eq(users.role, role)) : await query;
+
+    return exporToXLSX(data);
+  } catch (err: any) {
+    logger.error(err, "Export user error");
+    throw err;
+  }
+};
+
+export const patchUserById = async (py: PatchUserReq): Promise<UserRes> => {
+  try {
+    const [user] = await db
+      .update(users)
+      .set({ ...py })
+      .where(eq(users.id, py.id))
+      .returning({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        phone: users.phone,
+        role: users.role,
+      });
+
+    if (!user) {
+      throw createError(404, "Pengguna tidak ditemukan");
+    }
+    return user;
+  } catch (err: any) {
+    logger.error(err, "Patch user error");
+    throw err;
+  }
+};
+
+export const putRoleById = async (
+  role: UserRole,
+  id: string,
+): Promise<UserRes> => {
+  try {
+    const [user] = await db
+      .update(users)
+      .set({ role })
+      .where(eq(users.id, id))
+      .returning({
+        id: users.id,
+        username: users.username,
+        email: users.email,
+        phone: users.phone,
+        role: users.role,
+      });
+
+    if (!user) throw createError(404, "Pengguna tidak ditemukan");
+
+    return user;
+  } catch (err: any) {
+    logger.error(err, "Update role error");
     throw err;
   }
 };
