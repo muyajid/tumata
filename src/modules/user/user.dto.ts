@@ -10,7 +10,7 @@ export interface CreateUserReq {
 }
 
 export interface UserRes {
-  id: string;
+  id?: string;
   username: string;
   email: string;
   phone: string;
@@ -32,6 +32,12 @@ export interface GetUserRes {
     total: number;
     totalPages: number;
   };
+}
+
+export interface ImportUserRes {
+  created: number;
+  skipped: number;
+  skippedUsers: UserRes[]
 }
 
 export const postUserSchema = Joi.object({

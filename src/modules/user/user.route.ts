@@ -1,8 +1,9 @@
 import { Router } from "express";
-import { userCreate, userGet } from "./user.controller";
+import { userCreate, userGet, userImport } from "./user.controller";
 import { validate } from "../../middlewares/validation.middleware";
 import { postUserSchema } from "./user.dto";
 import { authenticate, authorize } from "../../middlewares/auth.middleware";
+import { importXLSX } from "../../middlewares/import.middleware";
 
 const router = Router();
 
@@ -14,5 +15,11 @@ router.post(
   userCreate,
 );
 router.get("/", authorize("Super Admin"), userGet);
+router.post(
+  "/import",
+  authorize("Super Admin"),
+  importXLSX.single("xlsx_file"),
+  userImport,
+);
 
 export default router;

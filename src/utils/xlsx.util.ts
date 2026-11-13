@@ -8,10 +8,11 @@ export const parseXLSXToJson = <T>(source: string | Buffer): T[] => {
       ? XLSX.readFile(source)
       : XLSX.read(source, { type: "buffer" });
 
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
 
-  return XLSX.utils.sheet_to_json<T>(sheet);
+  return XLSX.utils.sheet_to_json<T>(sheet, {
+    defval: "",
+  });
 };
 
 export const validateRows = <T>(data: T[], schema: ObjectSchema) => {

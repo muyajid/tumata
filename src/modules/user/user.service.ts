@@ -1,11 +1,19 @@
-import { asc, count } from "drizzle-orm";
+import { asc, count, inArray, or } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import { users } from "../../db/schema/user.schema";
 import { createError } from "../../exceptions/error.exception";
 import { createUserPassword, hashPassword } from "../../utils/auth.util";
 import { sendCredential } from "../mail/mail.service";
-import { CreateUserReq, GetUserReq, GetUserRes, UserRes } from "./user.dto";
+import {
+  CreateUserReq,
+  GetUserReq,
+  GetUserRes,
+  ImportUserRes,
+  postUserSchema,
+  UserRes,
+} from "./user.dto";
+import { parseXLSXToJson, validateRows } from "../../utils/xlsx.util";
 
 export const createUser = async (py: CreateUserReq): Promise<UserRes> => {
   try {
@@ -108,6 +116,122 @@ export const getUsers = async (py: GetUserReq): Promise<GetUserRes> => {
     };
   } catch (err: any) {
     logger.error(err, "Get users error");
+    throw err;
+  }
+};
+
+const checkDuplicateField = (data: CreateUserReq[]) => {
+  const usernameSet = new Set<String>();
+  const emailSet = new Set<String>();
+  const phoneSet = new Set<String>();
+
+  data.forEach((item, index) => {
+    if (usernameSet.has(item.username))
+      throw createError(400, `Baris data ke ${index + 2} username duplikat`);
+    if (emailSet.has(item.email))
+      throw createError(400, `Baris data ke ${index + 2} email duplikat`);
+    if (phoneSet.has(item.phone))
+      throw createError(400, `Bari data ke ${index + 2} nomor hp duplikat`);
+
+    usernameSet.add(item.username);
+    emailSet.add(item.email);
+    phoneSet.add(item.phone);
+  });
+};
+
+const prepareUsers = async (data: CreateUserReq[]) => {
+  const prepared = [];
+
+  for (const item of data) {
+    const plainPassword = createUserPassword();
+
+    prepared.push({
+      plainPassword,
+      data: {
+        username: item.username,
+        email: item.email,
+        phone: item.phone,
+        password: await hashPassword(plainPassword),
+        role: item.role,
+      },
+    });
+  }
+
+  return prepared;
+};
+
+export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
+  try {
+    const usersJson = parseXLSXToJson<CreateUserReq>(data);
+
+    if (usersJson.length <= 0)
+      throw createError(400, "File data pengguna kosong");
+
+    validateRows<CreateUserReq>(usersJson, postUserSchema);
+    checkDuplicateField(usersJson);
+
+    const existUsers = await db
+      .select({
+        username: users.username,
+        email: users.email,
+        phone: users.phone,
+      })
+      .from(users)
+      .where(
+        or(
+          inArray(
+            users.username,
+            usersJson.map((i) => i.username),
+          ),
+          inArray(
+            users.email,
+            usersJson.map((i) => i.email),
+          ),
+          inArray(
+            users.phone,
+            usersJson.map((i) => i.phone),
+          ),
+        ),
+      );
+
+    const existUsernames = new Set(existUsers.map((u) => u.username));
+    const existEmails = new Set(existUsers.map((u) => u.email));
+    const existPhones = new Set(existUsers.map((u) => u.phone));
+
+    const skippedUsers: CreateUserReq[] = [];
+    const createdUsers: CreateUserReq[] = [];
+
+    for (const user of usersJson) {
+      const isExist =
+        existUsernames.has(user.username) ||
+        existEmails.has(user.email) ||
+        existPhones.has(user.phone);
+
+      (isExist ? skippedUsers : createdUsers).push(user);
+    }
+
+    if (createdUsers.length === 0)
+      throw createError(400, "Semua pengguna sudah terdaftar");
+
+    const preparedUsers = await prepareUsers(createdUsers);
+
+    await db.insert(users).values(preparedUsers.map((i) => i.data));
+
+    for (const i of preparedUsers) {
+      await sendCredential({
+        to: i.data.email,
+        username: i.data.username,
+        password: i.plainPassword,
+      });
+    }
+
+    return {
+      created: createdUsers.length,
+      skipped: skippedUsers.length,
+      skippedUsers: skippedUsers,
+    };
+  } catch (err: any) {
+    logger.error(err, "Import user error");
     throw err;
   }
 };
