@@ -1,9 +1,9 @@
 import { configDotenv } from "dotenv";
 import express, { Request, Response } from "express";
-import logger from "./configs/logger.js";
-import router from "./routes/index.route.js";
-import { errorHandler } from "./exceptions/error-handler.exception.js";
-import { requestLogMiddleware } from "./middlewares/request.middleware.js";
+import logger from "./configs/logger";
+import router from "./routes/index.route";
+import { errorHandler } from "./exceptions/error-handler.exception";
+import { requestLogMiddleware } from "./middlewares/request.middleware";
 
 configDotenv();
 

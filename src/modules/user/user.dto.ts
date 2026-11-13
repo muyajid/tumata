@@ -17,6 +17,23 @@ export interface UserRes {
   role: UserRole;
 }
 
+export interface GetUserReq {
+  limit: number;
+  page: number;
+}
+
+export interface GetUserRes {
+  data: UserRes[];
+  pagination: {
+    page: number;
+    nextPage: number | null;
+    limit: number;
+    skip: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const postUserSchema = Joi.object({
   username: Joi.string().trim().min(3).max(100).required().messages({
     "string.base": "Username harus berupa teks",

@@ -1,10 +1,11 @@
-import { db } from "../../configs/db.config.js";
-import logger from "../../configs/logger.js";
-import { users } from "../../db/schema.js";
-import { createError } from "../../exceptions/error.exception.js";
-import { createUserPassword, hashPassword } from "../../utils/auth.util.js";
-import { sendCredential } from "../mail/mail.service.js";
-import { CreateUserReq, UserRes } from "./user.dto.js";
+import { asc, count } from "drizzle-orm";
+import { db } from "../../configs/db.config";
+import logger from "../../configs/logger";
+import { users } from "../../db/schema/user.schema";
+import { createError } from "../../exceptions/error.exception";
+import { createUserPassword, hashPassword } from "../../utils/auth.util";
+import { sendCredential } from "../mail/mail.service";
+import { CreateUserReq, GetUserReq, GetUserRes, UserRes } from "./user.dto";
 
 export const createUser = async (py: CreateUserReq): Promise<UserRes> => {
   try {
@@ -64,6 +65,49 @@ export const createUser = async (py: CreateUserReq): Promise<UserRes> => {
     return user;
   } catch (err: any) {
     logger.error(err, "Create user error");
+    throw err;
+  }
+};
+
+export const getUsers = async (py: GetUserReq): Promise<GetUserRes> => {
+  try {
+    const { limit, page } = py;
+
+    const skip = (page - 1) * limit;
+
+    const [data, totalData] = await Promise.all([
+      db
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          phone: users.phone,
+          role: users.role,
+        })
+        .from(users)
+        .orderBy(asc(users.createdAt))
+        .limit(limit)
+        .offset(skip),
+
+      db.select({ total: count() }).from(users),
+    ]);
+
+    const total = totalData[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: data,
+      pagination: {
+        page,
+        nextPage: page < totalPages ? page + 1 : null,
+        limit,
+        skip,
+        total,
+        totalPages,
+      },
+    };
+  } catch (err: any) {
+    logger.error(err, "Get users error");
     throw err;
   }
 };
