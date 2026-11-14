@@ -5,10 +5,9 @@ import {
   userGet,
   userImport,
   userPatch,
-  userPutRole,
 } from "./user.controller";
 import { validate } from "../../middlewares/validation.middleware";
-import { patchUserSchema, postUserSchema, updateRoleSchema } from "./user.dto";
+import { patchUserSchema, postUserSchema } from "./user.dto";
 import { authenticate, authorize } from "../../middlewares/auth.middleware";
 import { importXLSX } from "../../middlewares/import.middleware";
 
@@ -34,12 +33,6 @@ router.patch(
   authorize("Super Admin"),
   validate(patchUserSchema),
   userPatch,
-);
-router.put(
-  "/role/:id",
-  authorize("Super Admin"),
-  validate(updateRoleSchema),
-  userPutRole,
 );
 
 export default router;

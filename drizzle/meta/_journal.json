@@ -15,6 +15,13 @@
       "when": 1794529159770,
       "tag": "0001_dizzy_marvel_apes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794623417080,
+      "tag": "0002_legal_leopardon",
+      "breakpoints": true
     }
   ]
 }

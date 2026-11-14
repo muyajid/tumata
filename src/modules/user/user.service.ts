@@ -137,7 +137,7 @@ const checkDuplicateField = (data: CreateUserReq[]) => {
     if (emailSet.has(item.email))
       throw createError(400, `Baris data ke ${index + 2} email duplikat`);
     if (phoneSet.has(item.phone))
-      throw createError(400, `Bari data ke ${index + 2} nomor hp duplikat`);
+      throw createError(400, `Baris data ke ${index + 2} nomor hp duplikat`);
 
     usernameSet.add(item.username);
     emailSet.add(item.email);
@@ -283,32 +283,6 @@ export const patchUserById = async (py: PatchUserReq): Promise<UserRes> => {
     return user;
   } catch (err: any) {
     logger.error(err, "Patch user error");
-    throw err;
-  }
-};
-
-export const putRoleById = async (
-  role: UserRole,
-  id: string,
-): Promise<UserRes> => {
-  try {
-    const [user] = await db
-      .update(users)
-      .set({ role })
-      .where(eq(users.id, id))
-      .returning({
-        id: users.id,
-        username: users.username,
-        email: users.email,
-        phone: users.phone,
-        role: users.role,
-      });
-
-    if (!user) throw createError(404, "Pengguna tidak ditemukan");
-
-    return user;
-  } catch (err: any) {
-    logger.error(err, "Update role error");
     throw err;
   }
 };

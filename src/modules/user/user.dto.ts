@@ -47,14 +47,6 @@ export interface PatchUserReq {
   phone?: string;
 }
 
-export const roleSchema = Joi.string()
-  .valid("Super Admin", "Admin", "User")
-  .required()
-  .messages({
-    "any.only": "Role harus Super Admin, Admin atau User",
-    "any.required": "Role wajib diisi",
-  });
-
 export const postUserSchema = Joi.object({
   username: Joi.string().trim().min(3).max(100).required().messages({
     "string.base": "Username harus berupa teks",
@@ -80,7 +72,10 @@ export const postUserSchema = Joi.object({
         "Nomor telepon harus menggunakan format nomor telepon yang valid",
       "any.required": "Nomor telepon wajib diisi",
     }),
-  role: roleSchema,
+  role: Joi.string().valid("Super Admin", "Admin", "User").required().messages({
+    "any.only": "Role harus Super Admin, Admin atau User",
+    "any.required": "Role wajib diisi",
+  }),
 });
 
 export const patchUserSchema = Joi.object({
@@ -104,8 +99,7 @@ export const patchUserSchema = Joi.object({
       "string.pattern.base":
         "Nomor telepon harus menggunakan format nomor telepon yang valid",
     }),
-});
-
-export const updateRoleSchema = Joi.object({
-  role: roleSchema,
+  role: Joi.string().valid("Super Admin", "Admin", "User").messages({
+    "any.only": "Role harus Super Admin, Admin atau User",
+  }),
 });

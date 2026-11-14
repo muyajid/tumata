@@ -6,11 +6,11 @@ import {
   getUsers,
   importUser,
   patchUserById,
-  putRoleById,
 } from "./user.service";
 import { createError } from "../../exceptions/error.exception";
 import { UserRole } from "./user.dto";
 import { getUserPayload } from "../../utils/token.util";
+import logger from "../../configs/logger";
 
 export const userCreate = asyncHandler(async (req: Request, res: Response) => {
   const result = await createUser(req.body);
@@ -67,6 +67,13 @@ export const userExport = asyncHandler(async (req: Request, res: Response) => {
 
 export const userPatch = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
+  logger.debug(req.body, "user patch body request")
+
+  if (req.body.role !== undefined) {
+    const currentUser = getUserPayload(req);
+    if (currentUser.id === id)
+      throw createError(403, "You cannot change your own role");
+  }
 
   const result = await patchUserById({
     id,
@@ -78,22 +85,3 @@ export const userPatch = asyncHandler(async (req: Request, res: Response) => {
     data: result,
   });
 });
-
-export const userPutRole = asyncHandler(
-  async (req: Request, res: Response) => {
-    const currentUser = getUserPayload(req);
-    const id = String(req.params.id);
-
-    if (currentUser.id === id)
-      throw createError(403, "You cannot change your own role");
-
-    const { role } = req.body;
-    const result = await putRoleById(role, id);
-
-    return res.status(200).json({
-      success: true,
-      message: "Role successfully updated",
-      data: result,
-    });
-  },
-);
