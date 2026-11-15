@@ -32,7 +32,9 @@ export const authenticate = (
     const verif = verifAuthToken(bearer);
 
     if (!verif || verif == null) {
-      return next(createError(400, "Token salah atau sudah kadaluwarsa"));
+      return next(
+        createError(400, "Token authentikasi salah atau sudah kadaluwarsa"),
+      );
     }
 
     req.user = verif;
