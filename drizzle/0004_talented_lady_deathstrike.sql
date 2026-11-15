@@ -1,0 +1,1 @@
+ALTER TABLE "units" ALTER COLUMN "isArchived" SET NOT NULL;

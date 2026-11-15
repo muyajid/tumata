@@ -11,7 +11,9 @@ import {
 import {
   departmentCreate,
   departmentGet,
+  itemByIdGet,
   itemCreate,
+  itemGet,
   locationCreate,
   locationGet,
   patchDepartment,
@@ -54,5 +56,7 @@ router.post(
   validate(postItemSchema),
   itemCreate,
 );
+router.get("/item", itemGet);
+router.get("/item/:id", itemByIdGet);
 
 export default router;

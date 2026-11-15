@@ -5,6 +5,8 @@ import {
   createItem,
   createLocation,
   getDepartments,
+  getItemById,
+  getItems,
   getLocations,
   patchDepartmentById,
   patchLocationById,
@@ -83,9 +85,35 @@ export const patchLocation = asyncHandler(
 
 export const itemCreate = asyncHandler(async (req: Request, res: Response) => {
   const result = await createItem(req.body);
-  return res.status(200).json({
+  return res.status(201).json({
     success: true,
     message: "Item succesfully created",
+    data: result,
+  });
+});
+
+export const itemGet = asyncHandler(async (req: Request, res: Response) => {
+  const limit = Number(req.query.limit) || 10;
+  const page = Number(req.query.limit) || 1;
+
+  const result = await getItems({
+    limit,
+    page,
+  });
+  return res.status(200).json({
+    success: true,
+    message: "Items retrivied successfully",
+    data: result,
+  });
+});
+
+export const itemByIdGet = asyncHandler(async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+
+  const result = await getItemById(id);
+  return res.status(200).json({
+    success: true,
+    message: "Item retrivied successfully",
     data: result,
   });
 });

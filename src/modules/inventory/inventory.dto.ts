@@ -53,13 +53,41 @@ export interface ItemRes {
   location: LocationRes;
   procurementYear: number;
   description: string | null;
-  quantity: number;
+  quantity?: number;
+  units?: UnitRes[];
   createdAt: string;
 }
 
 export interface CreateUnitReq {
   itemId: string;
   code: string;
+}
+
+export type UnitStatus = "Tersedia" | "Rusak" | "Dalam Perawatan";
+
+export interface UnitRes {
+  id: string;
+  itemId?: string;
+  code: string;
+  status: UnitStatus;
+  isArchived: boolean;
+}
+
+export interface GetItemReq {
+  limit: number;
+  page: number;
+}
+
+export interface GetItemRes {
+  data: ItemRes[];
+  pagination: {
+    page: number;
+    nextPage: number | null;
+    limit: number;
+    skip: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
 export const postDepartmentSchema = Joi.object({

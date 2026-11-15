@@ -83,9 +83,28 @@ export const units = pgTable(
       .notNull(),
     imgUrl: varchar("imgUrl", { length: 255 }),
     status: unitStatus("status").default("Tersedia").notNull(),
-    isArchived: boolean("isArchived").default(false),
+    isArchived: boolean("isArchived").default(false).notNull(),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   },
   (table) => [index("idx_unit_itemId").on(table.itemId)],
 );
+
+export const itemsRelations = relations(items, ({ one, many }) => ({
+  department: one(departments, {
+    fields: [items.departmentId],
+    references: [departments.id],
+  }),
+  location: one(locations, {
+    fields: [items.locationId],
+    references: [locations.id],
+  }),
+  units: many(units),
+}));
+
+export const unitsRelations = relations(units, ({ one }) => ({
+  item: one(items, {
+    fields: [units.itemId],
+    references: [items.id],
+  }),
+}));

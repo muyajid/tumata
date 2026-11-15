@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { count, eq, or, sql } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import { departments, items, locations, units } from "../../db/schema";
@@ -8,6 +8,8 @@ import {
   CreateItemReq,
   CreateLocationReq,
   DepartmentRes,
+  GetItemReq,
+  GetItemRes,
   ItemRes,
   LocationRes,
   PatchDepartmentReq,
@@ -261,6 +263,130 @@ export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
     });
   } catch (err) {
     logger.error(err, "Create item error");
+    throw err;
+  }
+};
+
+export const getItems = async (py: GetItemReq): Promise<GetItemRes> => {
+  try {
+    const { limit, page } = py;
+    const skip = (page - 1) * limit;
+
+    const [data, totalData] = await Promise.all([
+      db
+        .select({
+          id: items.id,
+          code: items.code,
+          name: items.name,
+
+          department: {
+            id: departments.id,
+            name: departments.name,
+            code: departments.code,
+          },
+
+          location: {
+            id: locations.id,
+            name: locations.name,
+            code: locations.code,
+          },
+
+          procurementYear: items.procurementYear,
+          description: items.description,
+
+          quantity: sql<number>`(
+            SELECT COUNT(*)::int
+            FROM ${units}
+            WHERE ${units.itemId} = ${items.id}
+          )`,
+
+          createdAt: items.createdAt,
+        })
+        .from(items)
+        .innerJoin(departments, eq(items.departmentId, departments.id))
+        .innerJoin(locations, eq(items.locationId, locations.id))
+        .limit(limit)
+        .offset(skip),
+
+      db
+        .select({
+          total: count(),
+        })
+        .from(items),
+    ]);
+
+    const total = totalData[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: data.map((item) => ({
+        ...item,
+        createdAt: item.createdAt.toISOString(),
+      })),
+      pagination: {
+        page,
+        nextPage: page < totalPages ? page + 1 : null,
+        limit,
+        skip,
+        total,
+        totalPages,
+      },
+    };
+  } catch (err) {
+    logger.error(err, "Get item error");
+    throw err;
+  }
+};
+
+export const getItemById = async (id: string): Promise<ItemRes> => {
+  try {
+    const item = await db.query.items.findFirst({
+      where: eq(items.id, id),
+      columns: {
+        id: true,
+        code: true,
+        name: true,
+        procurementYear: true,
+        description: true,
+        createdAt: true,
+      },
+      with: {
+        department: {
+          columns: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        location: {
+          columns: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+        units: {
+          columns: {
+            id: true,
+            code: true,
+            imgUrl: true,
+            status: true,
+            isArchived: true,
+          },
+        },
+      },
+    });
+
+    if (!item) {
+      throw createError(404, "Barang tidak ditemukan");
+    }
+
+    return {
+      ...item,
+      createdAt: item.createdAt.toISOString(),
+    };
+  } catch (err) {
+    logger.error(err, "Get item by id error");
     throw err;
   }
 };
