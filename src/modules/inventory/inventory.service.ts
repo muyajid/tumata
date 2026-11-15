@@ -14,9 +14,11 @@ import {
   LocationRes,
   PatchDepartmentReq,
   PatchLocationReq,
+  postItemSchema,
 } from "./inventory.dto";
 import { createItemCode } from "../../utils/code.util";
 import { createUnits } from "../../utils/unit.util";
+import { parseXLSXToJson, validateRows } from "../../utils/xlsx.util";
 
 // --- Department and locations
 export const createDepartment = async (

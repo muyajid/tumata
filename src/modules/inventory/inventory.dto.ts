@@ -170,7 +170,7 @@ export const postItemSchema = Joi.object({
       "number.max": "Tahun pengadaan tidak boleh melebihi tahun ini",
       "any.required": "Tahun pengadaan wajib diisi",
     }),
-  description: Joi.string().max(200).messages({
+  description: Joi.string().max(200).optional().messages({
     "string.max": "Deskripsi maksimal 200 karakter",
   }),
   quantity: Joi.number().integer().min(1).required().messages({

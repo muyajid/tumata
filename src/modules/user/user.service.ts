@@ -12,12 +12,14 @@ import {
   ImportUserRes,
   PatchUserReq,
   postUserSchema,
+  SkippedUser,
   UserRes,
   UserRole,
 } from "./user.dto";
 import {
   exporToXLSX,
   parseXLSXToJson,
+  RowError,
   validateRows,
 } from "../../utils/xlsx.util";
 
@@ -127,22 +129,51 @@ export const getUsers = async (py: GetUserReq): Promise<GetUserRes> => {
 };
 
 const checkDuplicateField = (data: CreateUserReq[]) => {
-  const usernameSet = new Set<String>();
-  const emailSet = new Set<String>();
-  const phoneSet = new Set<String>();
+  const errors: RowError[] = [];
+
+  const usernameMap = new Map<string, number>();
+  const emailMap = new Map<string, number>();
+  const phoneMap = new Map<string, number>();
 
   data.forEach((item, index) => {
-    if (usernameSet.has(item.username))
-      throw createError(400, `Baris data ke ${index + 2} username duplikat`);
-    if (emailSet.has(item.email))
-      throw createError(400, `Baris data ke ${index + 2} email duplikat`);
-    if (phoneSet.has(item.phone))
-      throw createError(400, `Baris data ke ${index + 2} nomor hp duplikat`);
+    const row = index + 2;
 
-    usernameSet.add(item.username);
-    emailSet.add(item.email);
-    phoneSet.add(item.phone);
+    const username = item.username.trim().toLowerCase();
+    const email = item.email.trim().toLowerCase();
+    const phone = String(item.phone).trim();
+
+    const usernameRow = usernameMap.get(username);
+    const emailRow = emailMap.get(email);
+    const phoneRow = phoneMap.get(phone);
+
+    if (usernameRow)
+      errors.push({
+        row,
+        field: "username",
+        message: `Username duplikat dengan baris ${usernameRow}`,
+      });
+    else usernameMap.set(username, row);
+
+    if (emailRow)
+      errors.push({
+        row,
+        field: "email",
+        message: `Email duplikat dengan baris ${emailRow}`,
+      });
+    else emailMap.set(email, row);
+
+    if (phoneRow)
+      errors.push({
+        row,
+        field: "phone",
+        message: `Nomor HP duplikat dengan baris ${phoneRow}`,
+      });
+    else phoneMap.set(phone, row);
   });
+
+  if (errors.length > 0) {
+    throw createError(400, "Terdapat data duplikat dalam file", errors);
+  }
 };
 
 const prepareUsers = async (data: CreateUserReq[]) => {
@@ -173,8 +204,8 @@ export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
     if (usersJson.length <= 0)
       throw createError(400, "File data pengguna kosong");
 
-    validateRows<CreateUserReq>(usersJson, postUserSchema);
-    checkDuplicateField(usersJson);
+    const rows = validateRows<CreateUserReq>(usersJson, postUserSchema);
+    checkDuplicateField(rows);
 
     const existUsers = await db
       .select({
@@ -187,15 +218,15 @@ export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
         or(
           inArray(
             users.username,
-            usersJson.map((i) => i.username),
+            rows.map((i) => i.username),
           ),
           inArray(
             users.email,
-            usersJson.map((i) => i.email),
+            rows.map((i) => i.email),
           ),
           inArray(
             users.phone,
-            usersJson.map((i) => i.phone),
+            rows.map((i) => i.phone),
           ),
         ),
       );
@@ -204,33 +235,40 @@ export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
     const existEmails = new Set(existUsers.map((u) => u.email));
     const existPhones = new Set(existUsers.map((u) => u.phone));
 
-    const skippedUsers: CreateUserReq[] = [];
+    const skippedUsers: SkippedUser[] = [];
     const createdUsers: CreateUserReq[] = [];
 
-    for (const user of usersJson) {
-      const isExist =
-        existUsernames.has(user.username) ||
-        existEmails.has(user.email) ||
-        existPhones.has(user.phone);
+    rows.forEach((user, index) => {
+      const reasons: string[] = [];
+      if (existUsernames.has(user.username.toLowerCase()))
+        reasons.push("Username");
+      if (existEmails.has(user.email.toLowerCase())) reasons.push("Email");
+      if (existPhones.has(user.phone)) reasons.push("Nomor HP");
 
-      (isExist ? skippedUsers : createdUsers).push(user);
+      if (reasons.length > 0) {
+        skippedUsers.push({
+          row: index + 2,
+          username: user.username,
+          reason: `${reasons.join(", ")} sudah terdaftar`,
+        });
+      } else {
+        createdUsers.push(user);
+      }
+    });
+
+    if (createdUsers.length > 0) {
+      const preparedUsers = await prepareUsers(createdUsers);
+
+      await db.insert(users).values(preparedUsers.map((i) => i.data));
+
+      for (const i of preparedUsers) {
+        await sendCredential({
+          to: i.data.email,
+          username: i.data.username,
+          password: i.plainPassword,
+        });
+      }
     }
-
-    if (createdUsers.length === 0)
-      throw createError(400, "Semua pengguna sudah terdaftar");
-
-    const preparedUsers = await prepareUsers(createdUsers);
-
-    await db.insert(users).values(preparedUsers.map((i) => i.data));
-
-    for (const i of preparedUsers) {
-      await sendCredential({
-        to: i.data.email,
-        username: i.data.username,
-        password: i.plainPassword,
-      });
-    }
-
     return {
       created: createdUsers.length,
       skipped: skippedUsers.length,

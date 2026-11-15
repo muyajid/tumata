@@ -33,11 +33,16 @@ export interface GetUserRes {
     totalPages: number;
   };
 }
+export interface SkippedUser {
+  row: number;
+  username: string;
+  reason: string;
+}
 
 export interface ImportUserRes {
   created: number;
   skipped: number;
-  skippedUsers: UserRes[];
+  skippedUsers: SkippedUser[];
 }
 
 export interface PatchUserReq {

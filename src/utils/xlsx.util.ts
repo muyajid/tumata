@@ -15,24 +15,38 @@ export const parseXLSXToJson = <T>(source: string | Buffer): T[] => {
   });
 };
 
-export const validateRows = <T>(data: T[], schema: ObjectSchema): void => {
-  const errors: string[] = [];
+export interface RowError {
+  row: number;
+  field: string;
+  message: string;
+}
+
+export const validateRows = <T>(data: T[], schema: ObjectSchema): T[] => {
+  const errors: RowError[] = [];
+  const rows: T[] = [];
 
   data.forEach((item, index) => {
-    const { error } = schema.validate(item, {
+    const { error, value } = schema.validate(item, {
       abortEarly: false,
     });
 
     if (error) {
       error.details.forEach((detail) => {
-        errors.push(`Baris ${index + 2}: Kolom ${detail.message}`);
+        errors.push({
+          row: index + 2,
+          field: String(detail.path[0] ?? ""),
+          message: detail.message,
+        });
       });
+    } else {
+      rows.push(value);
     }
   });
 
   if (errors.length > 0) {
     throw createError(400, "Validasi data pengguna gagal", errors);
   }
+  return rows;
 };
 
 export const exporToXLSX = <T>(
