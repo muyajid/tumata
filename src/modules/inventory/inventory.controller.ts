@@ -2,6 +2,7 @@ import { asyncHandler } from "../../exceptions/async-handler.exception";
 import { Request, Response } from "express";
 import {
   createDepartment,
+  createItem,
   createLocation,
   getDepartments,
   getLocations,
@@ -79,3 +80,12 @@ export const patchLocation = asyncHandler(
     });
   },
 );
+
+export const itemCreate = asyncHandler(async (req: Request, res: Response) => {
+  const result = await createItem(req.body);
+  return res.status(200).json({
+    success: true,
+    message: "Item succesfully created",
+    data: result,
+  });
+});

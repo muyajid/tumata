@@ -31,9 +31,35 @@ export interface PatchDepartmentReq {
   code?: string;
 }
 
-export interface PatchLocationReq { 
+export interface PatchLocationReq {
   name?: string;
   code?: string;
+}
+
+export interface CreateItemReq {
+  name: string;
+  departmentId: string;
+  locationId: string;
+  procurementYear: number;
+  description: string;
+  quantity: number;
+}
+
+export interface ItemRes {
+  id: string;
+  code: string;
+  name: string;
+  department: DepartmentRes;
+  location: LocationRes;
+  procurementYear: number;
+  description: string | null;
+  quantity: number;
+  createdAt: string;
+}
+
+export interface CreateUnitReq {
+  itemId: string;
+  code: string;
 }
 
 export const postDepartmentSchema = Joi.object({
@@ -89,5 +115,40 @@ export const patchLocationSchema = Joi.object({
   code: Joi.string().min(2).max(20).messages({
     "string.min": "Kode lokasi minimal 2 karakter",
     "string.max": "Kode lokasi maksimal 20 karakter",
+  }),
+});
+
+export const postItemSchema = Joi.object({
+  name: Joi.string().min(3).max(200).required().messages({
+    "string.min": "Nama barang minimal 3 karakter",
+    "string.max": "Nama barang maksimal 200 karakter",
+    "any.required": "Nama barang wajib diisi",
+  }),
+  departmentId: Joi.string().required().messages({
+    "any.required": "Id jurusan wajib diisi",
+  }),
+  locationId: Joi.string().required().messages({
+    "any.required": "Id lokasi wajib diisi",
+  }),
+  procurementYear: Joi.number()
+    .integer()
+    .min(1900)
+    .max(new Date().getFullYear())
+    .required()
+    .messages({
+      "number.base": "Tahun pengadaan harus berupa angka",
+      "number.integer": "Tahun pengadaan harus berupa bilangan bulat",
+      "number.min": "Tahun pengadaan minimal 1900",
+      "number.max": "Tahun pengadaan tidak boleh melebihi tahun ini",
+      "any.required": "Tahun pengadaan wajib diisi",
+    }),
+  description: Joi.string().max(200).messages({
+    "string.max": "Deskripsi maksimal 200 karakter",
+  }),
+  quantity: Joi.number().integer().min(1).required().messages({
+    "number.base": "Jumlah barang harus berupa angka",
+    "number.integer": "Jumlah barang harus berupa bilangan bulat",
+    "number.min": "Jumlah barang minimal 1",
+    "any.required": "Jumlah barang wajib diisi",
   }),
 });

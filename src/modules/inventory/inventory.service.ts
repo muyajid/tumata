@@ -1,16 +1,20 @@
 import { eq, or } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
-import { departments, locations } from "../../db/schema";
+import { departments, items, locations, units } from "../../db/schema";
 import { createError } from "../../exceptions/error.exception";
 import {
   CreateDepartmentReq,
+  CreateItemReq,
   CreateLocationReq,
   DepartmentRes,
+  ItemRes,
   LocationRes,
   PatchDepartmentReq,
   PatchLocationReq,
 } from "./inventory.dto";
+import { createItemCode } from "../../utils/code.util";
+import { createUnits } from "../../utils/unit.util";
 
 // --- Department and locations
 export const createDepartment = async (
@@ -198,6 +202,65 @@ export const patchLocationById = async (
     return location;
   } catch (err) {
     logger.error(err, "Patch location error");
+    throw err;
+  }
+};
+// --- Items and unit
+export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
+  try {
+    const [department, location] = await Promise.all([
+      db.query.departments.findFirst({
+        where: eq(departments.id, py.departmentId),
+      }),
+      db.query.locations.findFirst({
+        where: eq(locations.id, py.locationId),
+      }),
+    ]);
+
+    if (!department) throw createError(404, "Jurusan tidak ditemukan");
+    if (!location) throw createError(404, "Lokasi tidak ditemukan");
+
+    return await db.transaction(async (tx) => {
+      const itemCode = createItemCode("WISKAR");
+
+      const [item] = await tx
+        .insert(items)
+        .values({
+          code: itemCode,
+          name: py.name,
+          departmentId: py.departmentId,
+          locationId: py.locationId,
+          procurementYear: py.procurementYear,
+          description: py.description ?? null,
+        })
+        .returning();
+
+      await tx
+        .insert(units)
+        .values(createUnits(item.id, itemCode, py.quantity));
+
+      return {
+        id: item.id,
+        code: item.code,
+        name: item.name,
+        department: {
+          id: department.id,
+          name: department.name,
+          code: department.code,
+        },
+        location: {
+          id: location.id,
+          name: location.name,
+          code: location.code,
+        },
+        procurementYear: item.procurementYear,
+        description: item.description,
+        quantity: py.quantity,
+        createdAt: item.createdAt.toISOString(),
+      };
+    });
+  } catch (err) {
+    logger.error(err, "Create item error");
     throw err;
   }
 };

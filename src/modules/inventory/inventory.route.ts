@@ -5,11 +5,13 @@ import {
   patchDepartmentSchema,
   patchLocationSchema,
   postDepartmentSchema,
+  postItemSchema,
   postLocationSchema,
 } from "./inventory.dto";
 import {
   departmentCreate,
   departmentGet,
+  itemCreate,
   locationCreate,
   locationGet,
   patchDepartment,
@@ -45,6 +47,12 @@ router.patch(
   authorize("Super Admin"),
   validate(patchLocationSchema),
   patchLocation,
+);
+router.post(
+  "/item",
+  authorize("Super Admin"),
+  validate(postItemSchema),
+  itemCreate,
 );
 
 export default router;
