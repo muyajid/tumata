@@ -1,11 +1,13 @@
+import logger from "../configs/logger";
+
 class AppError extends Error {
   public statusCode: number;
-  public error: unknown;
+  public errors: unknown;
 
-  constructor(statusCode: number, message: string, error: unknown) {
+  constructor(statusCode: number, message: string, errors: unknown) {
     super(message);
     this.statusCode = statusCode;
-    this.error = error;
+    this.errors = errors;
   }
 }
 
@@ -16,7 +18,7 @@ export const isAppEror = (err: any): boolean => {
 export const createError = (
   statusCode: number,
   message: string,
-  error: unknown = null,
+  errors: unknown = null,
 ) => {
-  return new AppError(statusCode, message, error);
+  return new AppError(statusCode, message, errors);
 };

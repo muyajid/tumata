@@ -79,7 +79,7 @@ export const postUserSchema = Joi.object({
     }),
   role: Joi.string().valid("Super Admin", "Admin", "User").required().messages({
     "any.only": "Role harus Super Admin, Admin atau User",
-    "any.required": "Role wajib diisi",
+    "string.empty": "Role tidak boleh kosong",
   }),
 });
 

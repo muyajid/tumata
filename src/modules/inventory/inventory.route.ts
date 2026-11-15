@@ -14,11 +14,13 @@ import {
   itemByIdGet,
   itemCreate,
   itemGet,
+  itemImport,
   locationCreate,
   locationGet,
   patchDepartment,
   patchLocation,
 } from "./inventory.controller";
+import { importXLSX } from "../../middlewares/import.middleware";
 
 const router = Router();
 
@@ -58,5 +60,11 @@ router.post(
 );
 router.get("/item", itemGet);
 router.get("/item/:id", itemByIdGet);
+router.post(
+  "/item/import",
+  authorize("Super Admin"),
+  importXLSX.single("xlsx_file"),
+  itemImport,
+);
 
 export default router;

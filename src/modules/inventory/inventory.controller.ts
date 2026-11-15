@@ -8,9 +8,11 @@ import {
   getItemById,
   getItems,
   getLocations,
+  importItem,
   patchDepartmentById,
   patchLocationById,
 } from "./inventory.service";
+import { createError } from "../../exceptions/error.exception";
 
 // --- Department and locations
 export const departmentCreate = asyncHandler(
@@ -114,6 +116,21 @@ export const itemByIdGet = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     success: true,
     message: "Item retrivied successfully",
+    data: result,
+  });
+});
+
+export const itemImport = asyncHandler(async (req: Request, res: Response) => {
+  const file = req.file;
+
+  if (!file || !file.buffer) {
+    throw createError(400, "File data barang wajib di upload");
+  }
+
+  const result = await importItem(file.buffer);
+  return res.status(201).json({
+    success: true,
+    message: "Item data succesfully imported",
     data: result,
   });
 });

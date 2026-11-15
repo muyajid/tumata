@@ -10,11 +10,14 @@ import {
   DepartmentRes,
   GetItemReq,
   GetItemRes,
+  importItemSchema,
+  ImportReq,
+  ImportRes,
   ItemRes,
   LocationRes,
   PatchDepartmentReq,
   PatchLocationReq,
-  postItemSchema,
+  SkippedItem,
 } from "./inventory.dto";
 import { createItemCode } from "../../utils/code.util";
 import { createUnits } from "../../utils/unit.util";
@@ -389,6 +392,103 @@ export const getItemById = async (id: string): Promise<ItemRes> => {
     };
   } catch (err) {
     logger.error(err, "Get item by id error");
+    throw err;
+  }
+};
+
+export const importItem = async (data: Buffer): Promise<ImportRes> => {
+  try {
+    const itemJson = parseXLSXToJson<ImportReq>(data);
+
+    const rows = validateRows<ImportReq>(itemJson, importItemSchema);
+
+    const [dept, loct] = await Promise.all([
+      db
+        .select({
+          id: departments.id,
+          code: departments.code,
+        })
+        .from(departments),
+      db
+        .select({
+          id: locations.id,
+          code: locations.code,
+        })
+        .from(locations),
+    ]);
+
+    const deptMap = new Map(dept.map((i) => [i.code.toUpperCase(), i.id]));
+    const loctMap = new Map(loct.map((i) => [i.code.toUpperCase(), i.id]));
+
+    const createdItem: CreateItemReq[] = [];
+    const skippedItem: SkippedItem[] = [];
+
+    for (const [index, row] of rows.entries()) {
+      const deptId = deptMap.get(row.department.trim().toUpperCase());
+      const loctId = loctMap.get(row.location.trim().toUpperCase());
+
+      const reasons = [];
+      if (!deptId) {
+        reasons.push("Kode jurusan tidak ditemukan");
+      }
+
+      if (!loctId) {
+        reasons.push("Kode lokasi tidak ditemukan");
+      }
+
+      if (reasons.length > 0) {
+        skippedItem.push({
+          row: index + 2,
+          name: row.name,
+          reason: reasons.join(", "),
+        });
+        continue;
+      }
+
+      createdItem.push({
+        name: row.name,
+        departmentId: deptId!,
+        locationId: loctId!,
+        procurementYear: row.procurementYear,
+        description: row.descpription,
+        quantity: row.quantity,
+      });
+    }
+
+    if (createItem.length > 0) {
+      await db.transaction(async (tx) => {
+        for (const i of createdItem) {
+          const itemCode = createItemCode("WISKAR");
+
+          const [item] = await tx
+            .insert(items)
+            .values({
+              code: itemCode,
+              name: i.name,
+              departmentId: i.departmentId,
+              locationId: i.locationId,
+              procurementYear: i.procurementYear,
+              description: i.description ?? null,
+            })
+            .returning({
+              id: items.id,
+              code: items.code,
+            });
+
+          await tx
+            .insert(units)
+            .values(createUnits(item.id, item.code, i.quantity));
+        }
+      });
+    }
+    return {
+      totalData: rows.length,
+      created: createdItem.length,
+      skipped: skippedItem.length,
+      skippedItem,
+    };
+  } catch (err) {
+    logger.error(err, "import item error");
     throw err;
   }
 };

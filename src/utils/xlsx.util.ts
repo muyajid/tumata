@@ -44,7 +44,7 @@ export const validateRows = <T>(data: T[], schema: ObjectSchema): T[] => {
   });
 
   if (errors.length > 0) {
-    throw createError(400, "Validasi data pengguna gagal", errors);
+    throw createError(400, "Validasi data gagal", errors);
   }
   return rows;
 };

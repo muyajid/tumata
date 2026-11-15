@@ -41,7 +41,7 @@ export interface CreateItemReq {
   departmentId: string;
   locationId: string;
   procurementYear: number;
-  description: string;
+  description?: string;
   quantity: number;
 }
 
@@ -90,6 +90,27 @@ export interface GetItemRes {
   };
 }
 
+export interface ImportReq {
+  name: string;
+  department: string;
+  location: string;
+  procurementYear: number;
+  descpription?: string;
+  quantity: number;
+}
+
+export interface SkippedItem {
+  row: number;
+  name: string;
+  reason: string;
+}
+
+export interface ImportRes {
+  totalData: number;
+  created: number;
+  skipped: number;
+  skippedItem: SkippedItem[];
+}
 export const postDepartmentSchema = Joi.object({
   name: Joi.string().min(2).max(100).required().messages({
     "string.min": "Nama jurusan minimal 2 karakter",
@@ -157,6 +178,41 @@ export const postItemSchema = Joi.object({
   }),
   locationId: Joi.string().required().messages({
     "any.required": "Id lokasi wajib diisi",
+  }),
+  procurementYear: Joi.number()
+    .integer()
+    .min(1900)
+    .max(new Date().getFullYear())
+    .required()
+    .messages({
+      "number.base": "Tahun pengadaan harus berupa angka",
+      "number.integer": "Tahun pengadaan harus berupa bilangan bulat",
+      "number.min": "Tahun pengadaan minimal 1900",
+      "number.max": "Tahun pengadaan tidak boleh melebihi tahun ini",
+      "any.required": "Tahun pengadaan wajib diisi",
+    }),
+  description: Joi.string().max(200).optional().messages({
+    "string.max": "Deskripsi maksimal 200 karakter",
+  }),
+  quantity: Joi.number().integer().min(1).required().messages({
+    "number.base": "Jumlah barang harus berupa angka",
+    "number.integer": "Jumlah barang harus berupa bilangan bulat",
+    "number.min": "Jumlah barang minimal 1",
+    "any.required": "Jumlah barang wajib diisi",
+  }),
+});
+
+export const importItemSchema = Joi.object({
+  name: Joi.string().min(3).max(200).required().messages({
+    "string.min": "Nama barang minimal 3 karakter",
+    "string.max": "Nama barang maksimal 200 karakter",
+    "any.required": "Nama barang wajib diisi",
+  }),
+  department: Joi.string().required().messages({
+    "any.required": "Kode jurusan wajib diisi",
+  }),
+  location: Joi.string().required().messages({
+    "any.required": "Kode lokasi wajib diisi",
   }),
   procurementYear: Joi.number()
     .integer()
