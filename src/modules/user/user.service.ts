@@ -197,13 +197,17 @@ const prepareUsers = async (data: CreateUserReq[]) => {
   return prepared;
 };
 
+const MAX_ROW = 100;
+
 export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
   try {
     const usersJson = parseXLSXToJson<CreateUserReq>(data);
 
     if (usersJson.length <= 0)
       throw createError(400, "File data pengguna kosong");
-
+    if (usersJson.length > MAX_ROW) {
+      throw createError(400, `Maksimal import ${MAX_ROW} data dalam satu file`);
+    }
     const rows = validateRows<CreateUserReq>(usersJson, postUserSchema);
     checkDuplicateField(rows);
 
@@ -270,6 +274,7 @@ export const importUser = async (data: Buffer): Promise<ImportUserRes> => {
       }
     }
     return {
+      totalData: rows.length,
       created: createdUsers.length,
       skipped: skippedUsers.length,
       skippedUsers: skippedUsers,

@@ -91,12 +91,12 @@ export interface GetItemRes {
 }
 
 export interface ImportReq {
-  name: string;
-  department: string;
-  location: string;
-  procurementYear: number;
-  descpription?: string;
-  quantity: number;
+  nama: string;
+  jurusan: string;
+  lokasi: string;
+  pengadaan: number;
+  deskripsi?: string;
+  jumlah: number;
 }
 
 export interface SkippedItem {
@@ -203,35 +203,34 @@ export const postItemSchema = Joi.object({
 });
 
 export const importItemSchema = Joi.object({
-  name: Joi.string().min(3).max(200).required().messages({
+  nama: Joi.string().trim().min(3).max(200).required().messages({
+    "string.empty": "Nama barang wajib diisi",
     "string.min": "Nama barang minimal 3 karakter",
     "string.max": "Nama barang maksimal 200 karakter",
     "any.required": "Nama barang wajib diisi",
   }),
-  department: Joi.string().required().messages({
-    "any.required": "Kode jurusan wajib diisi",
+  jurusan: Joi.string().trim().required().messages({
+    "string.empty": "Kode jurusan wajib diisi",
   }),
-  location: Joi.string().required().messages({
-    "any.required": "Kode lokasi wajib diisi",
+  lokasi: Joi.string().trim().required().messages({
+    "string.empty": "Kode lokasi wajib diisi",
   }),
-  procurementYear: Joi.number()
+  pengadaan: Joi.number()
     .integer()
     .min(1900)
     .max(new Date().getFullYear())
     .required()
     .messages({
       "number.base": "Tahun pengadaan harus berupa angka",
-      "number.integer": "Tahun pengadaan harus berupa bilangan bulat",
       "number.min": "Tahun pengadaan minimal 1900",
-      "number.max": "Tahun pengadaan tidak boleh melebihi tahun ini",
+      "number.max": "Tahun pengadaan tidak boleh melebih tahun ini",
       "any.required": "Tahun pengadaan wajib diisi",
     }),
-  description: Joi.string().max(200).optional().messages({
+  deskripsi: Joi.string().max(200).allow("").messages({
     "string.max": "Deskripsi maksimal 200 karakter",
   }),
-  quantity: Joi.number().integer().min(1).required().messages({
-    "number.base": "Jumlah barang harus berupa angka",
-    "number.integer": "Jumlah barang harus berupa bilangan bulat",
+  jumlah: Joi.number().integer().min(1).required().messages({
+    "number.base": "Jumlah unit harus berupa angka",
     "number.min": "Jumlah barang minimal 1",
     "any.required": "Jumlah barang wajib diisi",
   }),

@@ -40,6 +40,7 @@ export interface SkippedUser {
 }
 
 export interface ImportUserRes {
+  totalData: number;
   created: number;
   skipped: number;
   skippedUsers: SkippedUser[];

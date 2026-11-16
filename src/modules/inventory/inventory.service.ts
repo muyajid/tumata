@@ -213,6 +213,26 @@ export const patchLocationById = async (
   }
 };
 // --- Items and unit
+export const insertItem = async (tx: any, data: CreateItemReq) => {
+  const itemCode = createItemCode("WISKAR");
+
+  const [item] = await tx
+    .insert(items)
+    .values({
+      code: itemCode,
+      name: data.name,
+      departmentId: data.departmentId,
+      locationId: data.locationId,
+      procurementYear: data.procurementYear,
+      description: data.description ?? null,
+    })
+    .returning();
+
+  await tx.insert(units).values(createUnits(item.id, itemCode, data.quantity));
+
+  return item;
+};
+
 export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
   try {
     const [department, location] = await Promise.all([
@@ -228,23 +248,7 @@ export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
     if (!location) throw createError(404, "Lokasi tidak ditemukan");
 
     return await db.transaction(async (tx) => {
-      const itemCode = createItemCode("WISKAR");
-
-      const [item] = await tx
-        .insert(items)
-        .values({
-          code: itemCode,
-          name: py.name,
-          departmentId: py.departmentId,
-          locationId: py.locationId,
-          procurementYear: py.procurementYear,
-          description: py.description ?? null,
-        })
-        .returning();
-
-      await tx
-        .insert(units)
-        .values(createUnits(item.id, itemCode, py.quantity));
+      const item = await insertItem(tx, py);
 
       return {
         id: item.id,
@@ -396,10 +400,16 @@ export const getItemById = async (id: string): Promise<ItemRes> => {
   }
 };
 
+const MAX_ROW = 100;
+
 export const importItem = async (data: Buffer): Promise<ImportRes> => {
   try {
     const itemJson = parseXLSXToJson<ImportReq>(data);
 
+    if (itemJson.length < 0) throw createError(400, "File data barang kosong");
+    if (itemJson.length > MAX_ROW) {
+      throw createError(400, `Maksimal import ${MAX_ROW} data dalam satu file`);
+    }
     const rows = validateRows<ImportReq>(itemJson, importItemSchema);
 
     const [dept, loct] = await Promise.all([
@@ -417,78 +427,55 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
         .from(locations),
     ]);
 
-    const deptMap = new Map(dept.map((i) => [i.code.toUpperCase(), i.id]));
-    const loctMap = new Map(loct.map((i) => [i.code.toUpperCase(), i.id]));
+    const deptMap = new Map(dept.map((i) => [i.code, i.id]));
+    const loctMap = new Map(loct.map((i) => [i.code, i.id]));
 
-    const createdItem: CreateItemReq[] = [];
-    const skippedItem: SkippedItem[] = [];
+    const created: CreateItemReq[] = [];
+    const skipped: SkippedItem[] = [];
 
-    for (const [index, row] of rows.entries()) {
-      const deptId = deptMap.get(row.department.trim().toUpperCase());
-      const loctId = loctMap.get(row.location.trim().toUpperCase());
+    for (const [i, row] of rows.entries()) {
+      const deptId = deptMap.get(row.jurusan);
+      const loctId = loctMap.get(row.lokasi);
 
       const reasons = [];
-      if (!deptId) {
-        reasons.push("Kode jurusan tidak ditemukan");
-      }
-
-      if (!loctId) {
-        reasons.push("Kode lokasi tidak ditemukan");
-      }
+      if (!deptId) reasons.push("Kode jurusan");
+      if (!loctId) reasons.push("Kode lokasi");
 
       if (reasons.length > 0) {
-        skippedItem.push({
-          row: index + 2,
-          name: row.name,
-          reason: reasons.join(", "),
+        skipped.push({
+          row: i + 2,
+          name: row.nama,
+          reason: `${reasons.join(" dan ")} tidak ditemukan`,
         });
         continue;
       }
 
-      createdItem.push({
-        name: row.name,
+      created.push({
+        name: row.nama,
         departmentId: deptId!,
         locationId: loctId!,
-        procurementYear: row.procurementYear,
-        description: row.descpription,
-        quantity: row.quantity,
+        procurementYear: row.pengadaan,
+        description: row.deskripsi,
+        quantity: row.jumlah,
       });
     }
 
-    if (createItem.length > 0) {
+    if (created.length > 0) {
       await db.transaction(async (tx) => {
-        for (const i of createdItem) {
-          const itemCode = createItemCode("WISKAR");
-
-          const [item] = await tx
-            .insert(items)
-            .values({
-              code: itemCode,
-              name: i.name,
-              departmentId: i.departmentId,
-              locationId: i.locationId,
-              procurementYear: i.procurementYear,
-              description: i.description ?? null,
-            })
-            .returning({
-              id: items.id,
-              code: items.code,
-            });
-
-          await tx
-            .insert(units)
-            .values(createUnits(item.id, item.code, i.quantity));
+        for (const item of created) {
+          await insertItem(tx, item);
         }
       });
     }
+
     return {
       totalData: rows.length,
-      created: createdItem.length,
-      skipped: skippedItem.length,
-      skippedItem,
+      created: created.length,
+      skipped: skipped.length,
+      skippedItem: skipped,
     };
   } catch (err) {
-    logger.error(err, "import item error");
+    logger.error(err, "Import item error");
     throw err;
   }
 };
