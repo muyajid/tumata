@@ -16,6 +16,7 @@ import {
   ItemRes,
   LocationRes,
   PatchDepartmentReq,
+  PatchItemReq,
   PatchLocationReq,
   SkippedItem,
 } from "./inventory.dto";
@@ -529,6 +530,45 @@ export const exportItem = async (
     return exporToXLSX(data);
   } catch (err) {
     logger.error(err, "Export item error");
+    throw err;
+  }
+};
+
+export const patchItem = async (id: string, py: PatchItemReq) => {
+  try {
+    if (py.departmentId || py.locationId) {
+      const [validLocation] = await db
+        .select({
+          id: items.id,
+        })
+        .from(items)
+        .innerJoin(
+          locations,
+          and(
+            eq(locations.id, py.locationId ?? items.locationId),
+            eq(locations.departmentId, py.departmentId ?? items.departmentId),
+          ),
+        )
+        .where(eq(items.id, id))
+        .limit(1);
+      if (!validLocation)
+        throw createError(400, "Lokasi penyimpanan tidak sesuai dengan jurusan");
+    }
+    const [updatedItem] = await db
+      .update(items)
+      .set({
+        ...py,
+        updatedAt: new Date(),
+      })
+      .where(eq(items.id, id))
+      .returning();
+
+    if (!updatedItem) {
+      throw createError(404, "Barang tidak ditemukan");
+    }
+    return updatedItem;
+  } catch (err) {
+    logger.error(err, "Patch item error");
     throw err;
   }
 };

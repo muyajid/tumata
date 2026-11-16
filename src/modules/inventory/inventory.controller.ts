@@ -11,6 +11,7 @@ import {
   getLocations,
   importItem,
   patchDepartmentById,
+  patchItem,
   patchLocationById,
 } from "./inventory.service";
 import { createError } from "../../exceptions/error.exception";
@@ -85,7 +86,7 @@ export const patchLocation = asyncHandler(
     });
   },
 );
-
+// -- item and unit
 export const itemCreate = asyncHandler(async (req: Request, res: Response) => {
   const result = await createItem(req.body);
   return res.status(201).json({
@@ -152,5 +153,16 @@ export const itemExport = asyncHandler(async (req: Request, res: Response) => {
     'attachment; filename="data-barang.xlsx"',
   );
 
-  res.send(data);
+  return res.send(data);
+});
+
+export const itemPatch = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  const result = await patchItem(id as string, req.body);
+  return res.status(200).json({
+    success: true,
+    message: "Successfully updated",
+    data: result,
+  });
 });

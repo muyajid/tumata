@@ -36,7 +36,7 @@ export interface PatchLocationReq {
   name?: string;
   code?: string;
 }
-
+// --- Item and unit
 export interface CreateItemReq {
   name: string;
   departmentId: string;
@@ -56,7 +56,8 @@ export interface ItemRes {
   description: string | null;
   quantity?: number;
   units?: UnitRes[];
-  createdAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CreateUnitReq {
@@ -111,6 +112,14 @@ export interface ImportRes {
   created: number;
   skipped: number;
   skippedItem: SkippedItem[];
+}
+
+export interface PatchItemReq {
+  name?: string;
+  departmentId?: string;
+  locationId?: string;
+  procurementYear?: number;
+  description?: string;
 }
 
 export const postDepartmentSchema = Joi.object({
@@ -213,11 +222,11 @@ export const importItemSchema = Joi.object({
   }),
   jurusan: Joi.string().trim().required().messages({
     "string.empty": "Kode jurusan tidak boleh kosong",
-    "any.required": "Kode jurusan wajib diisi"
+    "any.required": "Kode jurusan wajib diisi",
   }),
   lokasi: Joi.string().trim().required().messages({
     "string.empty": "Kode lokasi tidak boleh kosong",
-    "any.required": "Kode lokasi wajib diisi"
+    "any.required": "Kode lokasi wajib diisi",
   }),
   pengadaan: Joi.number()
     .integer()
@@ -238,4 +247,27 @@ export const importItemSchema = Joi.object({
     "number.min": "Jumlah barang minimal 1",
     "any.required": "Jumlah barang wajib diisi",
   }),
+});
+
+export const patchItemSchema = Joi.object({
+  name: Joi.string().min(3).max(200).messages({
+    "string.min": "Nama barang minimal 3 karakter",
+    "string.max": "Nama barang maksimal 200 karakter",
+  }),
+  departmentId: Joi.string().uuid().messages({
+    "string.guid": "Id jurusan harus berupa UUID yang valid",
+  }),
+  locationId: Joi.string().uuid().messages({
+    "string.guid": "Id lokasi harus berupa UUID yang valid",
+  }),
+  procurementYear: Joi.number()
+    .integer()
+    .min(1900)
+    .max(new Date().getFullYear())
+    .messages({
+      "number.base": "Tahun pengadaan harus berupa angka",
+      "number.integer": "Tahun pengadaan harus berupa bilangan bulat",
+      "number.min": "Tahun pengadaan minimal 1900",
+      "number.max": "Tahun pengadaan tidak boleh melebihi tahun ini",
+    }),
 });

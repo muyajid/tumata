@@ -3,6 +3,7 @@ import { authenticate, authorize } from "../../middlewares/auth.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   patchDepartmentSchema,
+  patchItemSchema,
   patchLocationSchema,
   postDepartmentSchema,
   postItemSchema,
@@ -16,6 +17,7 @@ import {
   itemExport,
   itemGet,
   itemImport,
+  itemPatch,
   locationCreate,
   locationGet,
   patchDepartment,
@@ -59,8 +61,6 @@ router.post(
   validate(postItemSchema),
   itemCreate,
 );
-router.get("/item", itemGet);
-router.get("/item/:id", itemByIdGet);
 router.post(
   "/items/import",
   authorize("Super Admin"),
@@ -68,5 +68,13 @@ router.post(
   itemImport,
 );
 router.get("/items/export", authorize("Super Admin", "Admin"), itemExport);
+router.patch(
+  "/item/:id",
+  authorize("Super Admin"),
+  validate(patchItemSchema),
+  itemPatch,
+);
+router.get("/item", itemGet);
+router.get("/item/:id", itemByIdGet);
 
 export default router;
