@@ -1,4 +1,4 @@
-import { count, eq, or, sql } from "drizzle-orm";
+import { and, count, eq, or, sql } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import { departments, items, locations, units } from "../../db/schema";
@@ -21,7 +21,11 @@ import {
 } from "./inventory.dto";
 import { createItemCode } from "../../utils/code.util";
 import { createUnits } from "../../utils/unit.util";
-import { parseXLSXToJson, validateRows } from "../../utils/xlsx.util";
+import {
+  exporToXLSX,
+  parseXLSXToJson,
+  validateRows,
+} from "../../utils/xlsx.util";
 
 // --- Department and locations
 export const createDepartment = async (
@@ -287,28 +291,23 @@ export const getItems = async (py: GetItemReq): Promise<GetItemRes> => {
           id: items.id,
           code: items.code,
           name: items.name,
-
           department: {
             id: departments.id,
             name: departments.name,
             code: departments.code,
           },
-
           location: {
             id: locations.id,
             name: locations.name,
             code: locations.code,
           },
-
           procurementYear: items.procurementYear,
           description: items.description,
-
           quantity: sql<number>`(
             SELECT COUNT(*)::int
             FROM ${units}
             WHERE ${units.itemId} = ${items.id}
           )`,
-
           createdAt: items.createdAt,
         })
         .from(items)
@@ -476,6 +475,60 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
     };
   } catch (err) {
     logger.error(err, "Import item error");
+    throw err;
+  }
+};
+
+export const exportItem = async (
+  deptCode?: string,
+  loctCode?: string,
+): Promise<Buffer> => {
+  try {
+    const query = await db
+      .select({
+        code: items.code,
+        name: items.name,
+        department: departments.name,
+        departmentCode: departments.code,
+        location: locations.name,
+        locationCode: locations.code,
+        procurementYear: items.procurementYear,
+        description: items.description,
+        totalUnits: count(units.id),
+      })
+      .from(items)
+      .innerJoin(departments, eq(items.departmentId, departments.id))
+      .innerJoin(locations, eq(items.locationId, locations.id))
+      .leftJoin(units, eq(units.itemId, items.id))
+      .where(
+        and(
+          deptCode ? eq(departments.code, deptCode) : undefined,
+          loctCode ? eq(locations.code, loctCode) : undefined,
+        ),
+      )
+      .groupBy(
+        items.id,
+        departments.name,
+        departments.code,
+        locations.name,
+        locations.code,
+      );
+
+    const data = query.map((item) => ({
+      Kode: item.code,
+      Nama: item.name,
+      Jurusan: item.department,
+      Kode_Jurusan: item.departmentCode,
+      Lokasi: item.location,
+      Kode_Lokasi: item.locationCode,
+      Tahun_Pengadaan: item.procurementYear,
+      Deskripsi: item.description ?? "",
+      Jumlah_Unit: Number(item.totalUnits),
+    }));
+
+    return exporToXLSX(data);
+  } catch (err) {
+    logger.error(err, "Export item error");
     throw err;
   }
 };

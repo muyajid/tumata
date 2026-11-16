@@ -13,6 +13,7 @@ import {
   departmentGet,
   itemByIdGet,
   itemCreate,
+  itemExport,
   itemGet,
   itemImport,
   locationCreate,
@@ -61,10 +62,11 @@ router.post(
 router.get("/item", itemGet);
 router.get("/item/:id", itemByIdGet);
 router.post(
-  "/item/import",
+  "/items/import",
   authorize("Super Admin"),
   importXLSX.single("xlsx_file"),
   itemImport,
 );
+router.get("/items/export", authorize("Super Admin", "Admin"), itemExport);
 
 export default router;

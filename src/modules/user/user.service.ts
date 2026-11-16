@@ -298,7 +298,6 @@ export const exportUsers = async (role?: UserRole): Promise<Buffer> => {
       .from(users);
 
     const data = role ? await query.where(eq(users.role, role)) : await query;
-
     return exporToXLSX(data);
   } catch (err: any) {
     logger.error(err, "Export user error");

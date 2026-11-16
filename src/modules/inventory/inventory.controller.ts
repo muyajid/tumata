@@ -4,6 +4,7 @@ import {
   createDepartment,
   createItem,
   createLocation,
+  exportItem,
   getDepartments,
   getItemById,
   getItems,
@@ -133,4 +134,23 @@ export const itemImport = asyncHandler(async (req: Request, res: Response) => {
     message: "Item data succesfully imported",
     data: result,
   });
+});
+
+export const itemExport = asyncHandler(async (req: Request, res: Response) => {
+  const deptCode = req.query.departmentCode as string | undefined;
+  const loctCode = req.query.locationCode as string | undefined;
+
+  const data = await exportItem(deptCode, loctCode);
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+
+  res.setHeader(
+    "Content-Disposition",
+    'attachment; filename="data-barang.xlsx"',
+  );
+
+  res.send(data);
 });

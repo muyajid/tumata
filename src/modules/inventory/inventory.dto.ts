@@ -1,3 +1,4 @@
+import e from "express";
 import Joi from "joi";
 
 // --- Department and locations
@@ -111,6 +112,7 @@ export interface ImportRes {
   skipped: number;
   skippedItem: SkippedItem[];
 }
+
 export const postDepartmentSchema = Joi.object({
   name: Joi.string().min(2).max(100).required().messages({
     "string.min": "Nama jurusan minimal 2 karakter",
@@ -210,10 +212,12 @@ export const importItemSchema = Joi.object({
     "any.required": "Nama barang wajib diisi",
   }),
   jurusan: Joi.string().trim().required().messages({
-    "string.empty": "Kode jurusan wajib diisi",
+    "string.empty": "Kode jurusan tidak boleh kosong",
+    "any.required": "Kode jurusan wajib diisi"
   }),
   lokasi: Joi.string().trim().required().messages({
-    "string.empty": "Kode lokasi wajib diisi",
+    "string.empty": "Kode lokasi tidak boleh kosong",
+    "any.required": "Kode lokasi wajib diisi"
   }),
   pengadaan: Joi.number()
     .integer()
