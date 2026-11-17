@@ -13,6 +13,7 @@ import {
   patchDepartmentById,
   patchItemById,
   patchLocationById,
+  patchUnitImg,
 } from "./inventory.service";
 import { createError } from "../../exceptions/error.exception";
 
@@ -108,7 +109,7 @@ export const itemGet = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     message: "Items retrivied successfully",
     data: result.data,
-    pagination: result.pagination
+    pagination: result.pagination,
   });
 });
 
@@ -167,3 +168,20 @@ export const itemPatch = asyncHandler(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+export const unitImgPatch = asyncHandler(
+  async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const file = req.file;
+
+    if (!file || !file.buffer) {
+      throw createError(400, "Foto unit wajib di upload");
+    }
+    const result = await patchUnitImg(id, file.buffer);
+    return res.status(200).json({
+      success: true,
+      message: "Successfully updated",
+      data: result,
+    });
+  },
+);

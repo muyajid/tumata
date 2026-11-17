@@ -22,8 +22,9 @@ import {
   locationGet,
   patchDepartment,
   patchLocation,
+  unitImgPatch,
 } from "./inventory.controller";
-import { importXLSX } from "../../middlewares/import.middleware";
+import { importImage, importXLSX } from "../../middlewares/import.middleware";
 
 const router = Router();
 
@@ -76,5 +77,11 @@ router.patch(
 );
 router.get("/item", itemGet);
 router.get("/item/:id", itemByIdGet);
+router.patch(
+  "/unit/:id",
+  authorize("Super Admin"),
+  importImage.single("img"),
+  unitImgPatch,
+);
 
 export default router;

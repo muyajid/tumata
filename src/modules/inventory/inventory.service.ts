@@ -19,6 +19,7 @@ import {
   PatchItemReq,
   PatchLocationReq,
   SkippedItem,
+  UnitRes,
 } from "./inventory.dto";
 import { createItemCode } from "../../utils/code.util";
 import { createUnits } from "../../utils/unit.util";
@@ -27,6 +28,7 @@ import {
   parseXLSXToJson,
   validateRows,
 } from "../../utils/xlsx.util";
+import { createImage, updateImage } from "../image/image.service";
 
 // --- Department and locations
 export const createDepartment = async (
@@ -582,6 +584,39 @@ export const patchItemById = async (id: string, py: PatchItemReq) => {
     };
   } catch (err) {
     logger.error(err, "Patch item by id error");
+    throw err;
+  }
+};
+
+export const patchUnitImg = async (id: string, img: Buffer) => {
+  try {
+    const unit = await db.query.units.findFirst({
+      where: eq(units.id, id),
+    });
+
+    if (!unit) {
+      throw createError(404, "Unit tidak ditemukan");
+    }
+
+    const imgUrl = unit.imgUrl
+      ? await updateImage(img, unit.imgUrl)
+      : await createImage(img);
+
+    const [updatedUnit] = await db
+      .update(units)
+      .set({
+        imgUrl,
+        updatedAt: new Date(),
+      })
+      .where(eq(units.id, id))
+      .returning({
+        imgUrl: units.imgUrl,
+        updatedAt: units.updatedAt,
+      });
+
+    return updatedUnit;
+  } catch (err) {
+    logger.error(err, "Patch unit image error");
     throw err;
   }
 };
