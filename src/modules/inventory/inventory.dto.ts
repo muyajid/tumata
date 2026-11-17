@@ -71,6 +71,7 @@ export interface UnitRes {
   id: string;
   itemId?: string;
   code: string;
+  imgUrl: string | null;
   status: UnitStatus;
   isArchived: boolean;
 }
@@ -78,6 +79,7 @@ export interface UnitRes {
 export interface GetItemReq {
   limit: number;
   page: number;
+  search?: string;
 }
 
 export interface GetItemRes {
@@ -252,13 +254,13 @@ export const importItemSchema = Joi.object({
 export const patchItemSchema = Joi.object({
   name: Joi.string().min(3).max(200).messages({
     "string.min": "Nama barang minimal 3 karakter",
-    "string.max": "Nama barang maksimal 200 karakter",
+    "string.max": "Nama barang maksimal 200 karakter ",
   }),
-  departmentId: Joi.string().uuid().messages({
-    "string.guid": "Id jurusan harus berupa UUID yang valid",
+  departmentId: Joi.string().messages({
+    "string.base": "Id jurusan harus berupa string",
   }),
-  locationId: Joi.string().uuid().messages({
-    "string.guid": "Id lokasi harus berupa UUID yang valid",
+  locationId: Joi.string().messages({
+    "string.base": "Id lokasi harus berupa string",
   }),
   procurementYear: Joi.number()
     .integer()
@@ -270,4 +272,7 @@ export const patchItemSchema = Joi.object({
       "number.min": "Tahun pengadaan minimal 1900",
       "number.max": "Tahun pengadaan tidak boleh melebihi tahun ini",
     }),
+  description: Joi.string().max(200).messages({
+    "string.max": "Deskripsi maksimal 200 karakter",
+  }),
 });

@@ -252,6 +252,10 @@ export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
     if (!department) throw createError(404, "Jurusan tidak ditemukan");
     if (!location) throw createError(404, "Lokasi tidak ditemukan");
 
+    if (location.departmentId !== py.departmentId) {
+      throw createError(400, "Lokasi penyimpanan tidak sesuai dengan jurusan");
+    }
+
     return await db.transaction(async (tx) => {
       const item = await insertItem(tx, py);
 
@@ -358,6 +362,7 @@ export const getItemById = async (id: string): Promise<ItemRes> => {
         procurementYear: true,
         description: true,
         createdAt: true,
+        updatedAt: true,
       },
       with: {
         department: {
@@ -393,6 +398,7 @@ export const getItemById = async (id: string): Promise<ItemRes> => {
     return {
       ...item,
       createdAt: item.createdAt.toISOString(),
+      updatedAt: item.updatedAt.toISOString(),
     };
   } catch (err) {
     logger.error(err, "Get item by id error");
@@ -406,7 +412,7 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
   try {
     const itemJson = parseXLSXToJson<ImportReq>(data);
 
-    if (itemJson.length < 0) throw createError(400, "File data barang kosong");
+    if (itemJson.length <= 0) throw createError(400, "File data barang kosong");
     if (itemJson.length > MAX_ROW) {
       throw createError(400, `Maksimal import ${MAX_ROW} data dalam satu file`);
     }
@@ -534,27 +540,34 @@ export const exportItem = async (
   }
 };
 
-export const patchItem = async (id: string, py: PatchItemReq) => {
+export const patchItemById = async (id: string, py: PatchItemReq) => {
   try {
+    const [item] = await db
+      .select()
+      .from(items)
+      .where(eq(items.id, id))
+      .limit(1);
+
+    if (!item) throw createError(400, "Barang tidak ditemukan");
+
     if (py.departmentId || py.locationId) {
-      const [validLocation] = await db
-        .select({
-          id: items.id,
-        })
-        .from(items)
-        .innerJoin(
-          locations,
-          and(
-            eq(locations.id, py.locationId ?? items.locationId),
-            eq(locations.departmentId, py.departmentId ?? items.departmentId),
-          ),
-        )
-        .where(eq(items.id, id))
-        .limit(1);
-      if (!validLocation)
-        throw createError(400, "Lokasi penyimpanan tidak sesuai dengan jurusan");
+      const deptId = py.departmentId ?? item.departmentId;
+      const loctId = py.locationId ?? item.locationId;
+
+      const [ref] = await db
+        .select()
+        .from(locations)
+        .where(
+          and(eq(locations.departmentId, deptId), eq(locations.id, loctId)),
+        );
+
+      if (!ref)
+        throw createError(
+          404,
+          "Lokasi penyimpanan tidak sesuai dengan jurusan",
+        );
     }
-    const [updatedItem] = await db
+    const [updated] = await db
       .update(items)
       .set({
         ...py,
@@ -563,12 +576,12 @@ export const patchItem = async (id: string, py: PatchItemReq) => {
       .where(eq(items.id, id))
       .returning();
 
-    if (!updatedItem) {
-      throw createError(404, "Barang tidak ditemukan");
-    }
-    return updatedItem;
+    return {
+      ...py,
+      updatedAt: updated.updatedAt,
+    };
   } catch (err) {
-    logger.error(err, "Patch item error");
+    logger.error(err, "Patch item by id error");
     throw err;
   }
 };

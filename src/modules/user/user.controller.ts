@@ -30,7 +30,8 @@ export const userGet = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     success: true,
     message: "User data retrivied successfully",
-    data: result,
+    data: result.data,
+    pagination: result.pagination
   });
 });
 

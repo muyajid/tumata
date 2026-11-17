@@ -1,3 +1,4 @@
+import { MulterError } from "multer";
 import logger from "../configs/logger";
 
 class AppError extends Error {
@@ -14,6 +15,10 @@ class AppError extends Error {
 export const isAppEror = (err: any): boolean => {
   return err instanceof AppError;
 };
+
+export const isMulterError = (err: any): boolean => {
+  return err instanceof MulterError;
+}
 
 export const createError = (
   statusCode: number,

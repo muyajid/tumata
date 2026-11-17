@@ -11,7 +11,7 @@ import {
   getLocations,
   importItem,
   patchDepartmentById,
-  patchItem,
+  patchItemById,
   patchLocationById,
 } from "./inventory.service";
 import { createError } from "../../exceptions/error.exception";
@@ -107,7 +107,8 @@ export const itemGet = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     success: true,
     message: "Items retrivied successfully",
-    data: result,
+    data: result.data,
+    pagination: result.pagination
   });
 });
 
@@ -157,9 +158,9 @@ export const itemExport = asyncHandler(async (req: Request, res: Response) => {
 });
 
 export const itemPatch = asyncHandler(async (req: Request, res: Response) => {
-  const { id } = req.params;
+  const id = String(req.params.id);
 
-  const result = await patchItem(id as string, req.body);
+  const result = await patchItemById(id, req.body);
   return res.status(200).json({
     success: true,
     message: "Successfully updated",
