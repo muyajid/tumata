@@ -53,6 +53,7 @@ export const authCurrentUser = async (id: string): Promise<UserRes> => {
         role: users.role,
       })
       .from(users)
+      .where(eq(users.id, id))
       .limit(1);
 
     return user;

@@ -247,20 +247,27 @@ export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
         where: eq(departments.id, py.departmentId),
       }),
       db.query.locations.findFirst({
-        where: eq(locations.id, py.locationId),
+        where: and(
+          eq(locations.id, py.locationId),
+          eq(locations.departmentId, py.departmentId),
+        ),
       }),
     ]);
 
-    if (!department) throw createError(404, "Jurusan tidak ditemukan");
-    if (!location) throw createError(404, "Lokasi tidak ditemukan");
+    const errors = [];
+    if (!department) {
+      errors.push({ field: "departmentId", message: "Jurusan tidak ditemukan" });
+    }
+    if (!location) {
+      errors.push({ field: "locationId", message: "Lokasi tidak ditemukan" });
+    }
 
-    if (location.departmentId !== py.departmentId) {
-      throw createError(400, "Lokasi penyimpanan tidak sesuai dengan jurusan");
+    if (errors.length > 0 || !department || !location) {
+      throw createError(400, "Validasi gagal", errors);
     }
 
     return await db.transaction(async (tx) => {
       const item = await insertItem(tx, py);
-
       return {
         id: item.id,
         code: item.code,
@@ -535,7 +542,7 @@ export const exportItem = async (
       Jumlah_Unit: Number(item.totalUnits),
     }));
 
-    return exporToXLSX(data);
+    return exporToXLSX(data, "Data Barang");
   } catch (err) {
     logger.error(err, "Export item error");
     throw err;
