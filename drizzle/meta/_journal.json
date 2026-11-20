@@ -36,6 +36,20 @@
       "when": 1794710665637,
       "tag": "0004_talented_lady_deathstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795072637955,
+      "tag": "0005_tiresome_jazinda",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795133495927,
+      "tag": "0006_amazing_fallen_one",
+      "breakpoints": true
     }
   ]
 }

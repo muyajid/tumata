@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import { asyncHandler } from "../../exceptions/async-handler.exception";
 import {
+  activateUser,
   createUser,
+  deactivateUser,
   exportUsers,
   getUsers,
   importUser,
@@ -31,7 +33,7 @@ export const userGet = asyncHandler(async (req: Request, res: Response) => {
     success: true,
     message: "User data retrivied successfully",
     data: result.data,
-    pagination: result.pagination
+    pagination: result.pagination,
   });
 });
 
@@ -68,7 +70,6 @@ export const userExport = asyncHandler(async (req: Request, res: Response) => {
 
 export const userPatch = asyncHandler(async (req: Request, res: Response) => {
   const id = req.params.id;
-  logger.debug(req.body, "user patch body request")
 
   if (req.body.role !== undefined) {
     const currentUser = getUserPayload(req);
@@ -86,3 +87,23 @@ export const userPatch = asyncHandler(async (req: Request, res: Response) => {
     data: result,
   });
 });
+
+export const userSetStatus = asyncHandler(
+  async (req: Request, res: Response) => {
+    const id = String(req.params.id);
+    const { isActive } = req.body;
+
+    const current = getUserPayload(req);
+    if (id === current.id) {
+      throw createError(403, "You cannot change your own status");
+    }
+
+    const result = isActive ? await activateUser(id) : await deactivateUser(id);
+
+    return res.status(200).json({
+      success: true,
+      message: `User successfully ${isActive ? "activated" : "deactivated"}`,
+      data: result,
+    });
+  },
+);

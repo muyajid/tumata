@@ -19,7 +19,13 @@ export const authLogin = async (py: LoginReq): Promise<LoginRes> => {
     if (!user) {
       throw createError(404, "User tidak ditemukan");
     }
-    
+    if (!user.isActive) {
+      throw createError(
+        403,
+        "Akun anda telah di nonaktifkan. Hubungin administrator",
+      );
+    }
+
     const isPasswordValid = await comparePassword(py.password, user.password);
 
     if (!isPasswordValid) {

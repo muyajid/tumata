@@ -99,6 +99,7 @@ export const getUsers = async (py: GetUserReq): Promise<GetUserRes> => {
           email: users.email,
           phone: users.phone,
           role: users.role,
+          isActive: users.isActive,
         })
         .from(users)
         .orderBy(asc(users.createdAt))
@@ -289,7 +290,6 @@ export const exportUsers = async (role?: UserRole): Promise<Buffer> => {
   try {
     const query = db
       .select({
-        id: users.id,
         username: users.username,
         email: users.email,
         phone: users.phone,
@@ -298,7 +298,13 @@ export const exportUsers = async (role?: UserRole): Promise<Buffer> => {
       .from(users);
 
     const data = role ? await query.where(eq(users.role, role)) : await query;
-    return exporToXLSX(data);
+
+    const exportData = data.map((user, index) => ({
+      no: index + 1,
+      ...user,
+    }));
+
+    return exporToXLSX(exportData);
   } catch (err: any) {
     logger.error(err, "Export user error");
     throw err;
@@ -328,3 +334,27 @@ export const patchUserById = async (py: PatchUserReq): Promise<UserRes> => {
     throw err;
   }
 };
+
+const setUserStatus = async (id: string, isActive: boolean) => {
+  try {
+    const [user] = await db
+      .update(users)
+      .set({
+        isActive,
+      })
+      .where(eq(users.id, id))
+      .returning({
+        isActive: users.isActive,
+        updatedAt: users.updatedAt,
+      });
+
+    if (!user) throw createError(404, "Pengguna tidak ditemukan");
+    return user;
+  } catch (err) {
+    logger.error(err, "Set user status error");
+    throw err;
+  }
+};
+
+export const activateUser = async (id: string) => setUserStatus(id, true);
+export const deactivateUser = async (id: string) => setUserStatus(id, false);

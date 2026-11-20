@@ -26,7 +26,9 @@ export const locations = pgTable(
     code: varchar("code", { length: 50 }).notNull().unique(),
     departmentId: uuid("departmentId")
       .notNull()
-      .references(() => departments.id),
+      .references(() => departments.id, {
+        onDelete: "cascade",
+      }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   },
@@ -79,7 +81,7 @@ export const units = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     code: varchar("code", { length: 50 }).notNull().unique(),
     itemId: uuid("itemId")
-      .references(() => items.id)
+      .references(() => items.id, { onDelete: "cascade" })
       .notNull(),
     imgUrl: varchar("imgUrl", { length: 255 }),
     status: unitStatus("status").default("Tersedia").notNull(),

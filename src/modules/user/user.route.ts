@@ -5,6 +5,7 @@ import {
   userGet,
   userImport,
   userPatch,
+  userSetStatus,
 } from "./user.controller";
 import { validate } from "../../middlewares/validation.middleware";
 import { patchUserSchema, postUserSchema } from "./user.dto";
@@ -34,5 +35,6 @@ router.patch(
   validate(patchUserSchema),
   userPatch,
 );
+router.patch("/:id/status", authorize("Super Admin"), userSetStatus);
 
 export default router;

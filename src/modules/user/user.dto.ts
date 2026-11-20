@@ -15,6 +15,7 @@ export interface UserRes {
   email: string;
   phone: string;
   role: UserRole;
+  isActive?: boolean;
 }
 
 export interface GetUserReq {

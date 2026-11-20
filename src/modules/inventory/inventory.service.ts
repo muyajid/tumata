@@ -256,7 +256,10 @@ export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
 
     const errors = [];
     if (!department) {
-      errors.push({ field: "departmentId", message: "Jurusan tidak ditemukan" });
+      errors.push({
+        field: "departmentId",
+        message: "Jurusan tidak ditemukan",
+      });
     }
     if (!location) {
       errors.push({ field: "locationId", message: "Lokasi tidak ditemukan" });
@@ -438,23 +441,28 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
         .select({
           id: locations.id,
           code: locations.code,
+          departmentId: locations.departmentId,
         })
         .from(locations),
     ]);
 
     const deptMap = new Map(dept.map((i) => [i.code, i.id]));
-    const loctMap = new Map(loct.map((i) => [i.code, i.id]));
+    const loctMap = new Map(loct.map((i) => [i.code, i]));
 
     const created: CreateItemReq[] = [];
     const skipped: SkippedItem[] = [];
 
     for (const [i, row] of rows.entries()) {
       const deptId = deptMap.get(row.jurusan);
-      const loctId = loctMap.get(row.lokasi);
+      const location = loctMap.get(row.lokasi);
 
       const reasons = [];
       if (!deptId) reasons.push("Kode jurusan");
-      if (!loctId) reasons.push("Kode lokasi");
+      if (!location) {
+        reasons.push("Kode lokasi");
+      } else if (deptId && location.departmentId !== deptId) {
+        reasons.push("Lokasi tidak sesuai dengan jurusan");
+      }
 
       if (reasons.length > 0) {
         skipped.push({
@@ -468,7 +476,7 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
       created.push({
         name: row.nama,
         departmentId: deptId!,
-        locationId: loctId!,
+        locationId: location!.id,
         procurementYear: row.pengadaan,
         description: row.deskripsi,
         quantity: row.jumlah,
