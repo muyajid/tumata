@@ -80,6 +80,8 @@ export interface GetItemReq {
   limit: number;
   page: number;
   search?: string;
+  departmentId?: string;
+  locationId?: string;
 }
 
 export interface GetItemRes {

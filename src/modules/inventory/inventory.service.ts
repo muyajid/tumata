@@ -1,4 +1,4 @@
-import { and, count, eq, or, sql } from "drizzle-orm";
+import { and, count, eq, ilike, or, sql } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import { departments, items, locations, units } from "../../db/schema";
@@ -299,7 +299,13 @@ export const createItem = async (py: CreateItemReq): Promise<ItemRes> => {
 
 export const getItems = async (py: GetItemReq): Promise<GetItemRes> => {
   try {
-    const { limit, page } = py;
+    const { limit, page, search, departmentId, locationId } = py;
+
+    const whereCondition = and(
+      search ? ilike(items.name, `%${search}%`) : undefined,
+      departmentId ? eq(items.departmentId, departmentId) : undefined,
+      locationId ? eq(items.locationId, locationId) : undefined,
+    );
     const skip = (page - 1) * limit;
 
     const [data, totalData] = await Promise.all([
@@ -330,6 +336,7 @@ export const getItems = async (py: GetItemReq): Promise<GetItemRes> => {
         .from(items)
         .innerJoin(departments, eq(items.departmentId, departments.id))
         .innerJoin(locations, eq(items.locationId, locations.id))
+        .where(whereCondition)
         .limit(limit)
         .offset(skip),
 
@@ -337,7 +344,8 @@ export const getItems = async (py: GetItemReq): Promise<GetItemRes> => {
         .select({
           total: count(),
         })
-        .from(items),
+        .from(items)
+        .where(whereCondition),
     ]);
 
     const total = totalData[0].total;

@@ -1,4 +1,4 @@
-import { asc, count, eq, inArray, or } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, or } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import { users } from "../../db/schema/user.schema";
@@ -87,7 +87,18 @@ export const createUser = async (py: CreateUserReq): Promise<UserRes> => {
 
 export const getUsers = async (py: GetUserReq): Promise<GetUserRes> => {
   try {
-    const { limit, page } = py;
+    const { limit, page, search, role } = py;
+
+    const whereCondition = and(
+      search
+        ? or(
+            ilike(users.username, `%${search}%`),
+            ilike(users.email, `%${search}%`),
+            ilike(users.phone, `%${search}%`),
+          )
+        : undefined,
+      role ? eq(users.role, role) : undefined,
+    );
 
     const skip = (page - 1) * limit;
 
@@ -102,11 +113,12 @@ export const getUsers = async (py: GetUserReq): Promise<GetUserRes> => {
           isActive: users.isActive,
         })
         .from(users)
+        .where(whereCondition)
         .orderBy(asc(users.createdAt))
         .limit(limit)
         .offset(skip),
 
-      db.select({ total: count() }).from(users),
+      db.select({ total: count() }).from(users).where(whereCondition),
     ]);
 
     const total = totalData[0].total;

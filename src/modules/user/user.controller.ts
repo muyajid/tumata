@@ -12,7 +12,6 @@ import {
 import { createError } from "../../exceptions/error.exception";
 import { UserRole } from "./user.dto";
 import { getUserPayload } from "../../utils/token.util";
-import logger from "../../configs/logger";
 
 export const userCreate = asyncHandler(async (req: Request, res: Response) => {
   const result = await createUser(req.body);
@@ -27,8 +26,14 @@ export const userCreate = asyncHandler(async (req: Request, res: Response) => {
 export const userGet = asyncHandler(async (req: Request, res: Response) => {
   const limit = Number(req.query.limit) || 10;
   const page = Number(req.query.page) || 1;
+  const { search, role } = req.query;
 
-  const result = await getUsers({ limit, page });
+  const result = await getUsers({
+    limit,
+    page,
+    search: search as string,
+    role: role as UserRole,
+  });
   return res.status(200).json({
     success: true,
     message: "User data retrivied successfully",
