@@ -1,9 +1,15 @@
-import { and, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, sql, count, desc } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
-import { loanCounters, loans } from "../../db/schema";
+import { items, loanCounters, loans, units, users } from "../../db/schema";
 import { createError } from "../../exceptions/error.exception";
-import { CreateLoanReq, CreateLoanRes } from "./loan.dto";
+import {
+  CreateLoanReq,
+  CreateLoanRes,
+  GetLoanReq,
+  GetLoanRes,
+  LoanRes,
+} from "./loan.dto";
 
 const createLoanCode = async (tx: any): Promise<string> => {
   const year = new Date().getFullYear();
@@ -42,6 +48,19 @@ export const createLoan = async (
     }
 
     const loan = await db.transaction(async (tx) => {
+      const [unit] = await tx
+        .select()
+        .from(units)
+        .where(eq(units.id, py.unitId))
+        .for("update");
+
+      if (!unit) throw createError(404, "Unit tidak ditemukan");
+
+      if (unit.status !== "Tersedia") {
+        throw createError(400, "Unit sedang tidak tersedia");
+      }
+      if (unit.isArchived) throw createError(400, "Unit sudah diarsipkan");
+
       const conflict = await tx.query.loans.findFirst({
         where: and(
           eq(loans.unitId, py.unitId),
@@ -78,6 +97,80 @@ export const createLoan = async (
     return loan;
   } catch (err) {
     logger.error(err, "Create loan error");
+    throw err;
+  }
+};
+
+export const getLoans = async (py: GetLoanReq): Promise<GetLoanRes> => {
+  try {
+    const { limit, page } = py;
+
+    const skip = (page - 1) * limit;
+
+    const [rows, totalData] = await Promise.all([
+      db
+        .select({
+          id: loans.id,
+          code: loans.code,
+          user: {
+            username: users.username,
+            phone: users.phone,
+            email: users.email,
+          },
+          unit: {
+            code: units.code,
+            imgUrl: units.imgUrl,
+            itemName: items.name,
+          },
+          borrowedDate: loans.borrowedDate,
+          returnDate: loans.returnDate,
+          status: loans.status,
+          createdAt: loans.createdAt,
+        })
+        .from(loans)
+        .innerJoin(users, eq(loans.userId, users.id))
+        .innerJoin(units, eq(loans.unitId, units.id))
+        .innerJoin(items, eq(units.itemId, items.id))
+        .limit(limit)
+        .offset(skip)
+        .orderBy(desc(loans.createdAt)),
+
+      db.select({ total: count() }).from(loans),
+    ]);
+
+    const data: LoanRes[] = rows.map((r) => ({
+      id: r.id,
+      code: r.code,
+      user: r.user,
+      unit: {
+        code: r.unit.code,
+        imgUrl: r.unit.imgUrl ?? "",
+        item: {
+          name: r.unit.itemName,
+        },
+      },
+      borrowedDate: r.borrowedDate.toISOString(),
+      returnDate: r.returnDate.toISOString(),
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+    }));
+
+    const total = totalData[0].total;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data,
+      pagination: {
+        page,
+        nextPage: page < totalPages ? page + 1 : null,
+        limit,
+        skip,
+        total,
+        totalPages,
+      },
+    };
+  } catch (err) {
+    logger.error(err, "Get loans error");
     throw err;
   }
 };

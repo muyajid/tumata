@@ -15,6 +15,52 @@ export interface CreateLoanRes {
   status: LoanStatus;
 }
 
+export interface GetLoanReq {
+  limit: number;
+  page: number;
+}
+
+export interface LoanRes {
+  id: string;
+  code: string;
+  user: {
+    username: string;
+    phone: string;
+    email: string;
+  };
+  unit: {
+    code: string;
+    imgUrl: string;
+    item: {
+      name: string;
+    };
+  };
+  borrowedDate: string;
+  returnDate: string;
+  purpose?: string;
+  actualReturnDate?: string;
+  processedBy?: {
+    name: string;
+  };
+  checkedBy?: {
+    name: string;
+  };
+  status: LoanStatus;
+  createdAt: string;
+}
+
+export interface GetLoanRes {
+  data: LoanRes[];
+  pagination: {
+    page: number;
+    nextPage: number | null;
+    limit: number;
+    skip: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export const postLoanSchema = Joi.object({
   unitId: Joi.string().trim().required().messages({
     "string.empty": "Id unit tidak boleh kosong",

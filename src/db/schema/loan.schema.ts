@@ -44,6 +44,7 @@ export const loans = pgTable(
   (table) => [
     index("idx_loans_unitId").on(table.unitId),
     index("idx_loans_userId").on(table.userId),
+    index("idx_loans_createdAt").on(table.createdAt),
   ],
 );
 
