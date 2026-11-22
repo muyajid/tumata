@@ -1,0 +1,1 @@
+ALTER TABLE "users" ALTER COLUMN "isActive" SET NOT NULL;

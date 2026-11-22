@@ -21,7 +21,7 @@ export interface UserRes {
 export interface GetUserReq {
   limit: number;
   page: number;
-  search?: string;
+search?: string;
   role?: UserRole;
 }
 
