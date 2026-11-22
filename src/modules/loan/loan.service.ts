@@ -10,6 +10,7 @@ import {
   GetLoanRes,
   LoanRes,
 } from "./loan.dto";
+import { resolveLoanStatus } from "../../utils/loan.util";
 
 const createLoanCode = async (tx: any): Promise<string> => {
   const year = new Date().getFullYear();
@@ -43,7 +44,7 @@ export const createLoan = async (
     if (dateBorrowed.setSeconds(0, 0) < new Date().setSeconds(0, 0)) {
       throw createError(
         400,
-        "Tanggal mulai pinjam haru hari ini atau setelahnya",
+        "Waktu mulai pinjam haru hari ini atau setelahnya",
       );
     }
 
@@ -71,7 +72,7 @@ export const createLoan = async (
       });
 
       if (conflict)
-        throw createError(400, "Unit tidak tersedia pada tanggal tersebut");
+        throw createError(400, "Unit tidak tersedia pada waktu tersebut");
 
       const code = await createLoanCode(tx);
 
@@ -101,11 +102,15 @@ export const createLoan = async (
   }
 };
 
-export const getLoans = async (py: GetLoanReq): Promise<GetLoanRes> => {
+export const getLoans = async (
+  py: GetLoanReq,
+  userId?: string,
+): Promise<GetLoanRes> => {
   try {
     const { limit, page } = py;
 
     const skip = (page - 1) * limit;
+    const whereCondition = userId ? eq(loans.userId, userId) : undefined;
 
     const [rows, totalData] = await Promise.all([
       db
@@ -131,11 +136,12 @@ export const getLoans = async (py: GetLoanReq): Promise<GetLoanRes> => {
         .innerJoin(users, eq(loans.userId, users.id))
         .innerJoin(units, eq(loans.unitId, units.id))
         .innerJoin(items, eq(units.itemId, items.id))
+        .where(whereCondition)
+        .orderBy(desc(loans.createdAt))
         .limit(limit)
-        .offset(skip)
-        .orderBy(desc(loans.createdAt)),
+        .offset(skip),
 
-      db.select({ total: count() }).from(loans),
+      db.select({ total: count() }).from(loans).where(whereCondition),
     ]);
 
     const data: LoanRes[] = rows.map((r) => ({
@@ -151,7 +157,7 @@ export const getLoans = async (py: GetLoanReq): Promise<GetLoanRes> => {
       },
       borrowedDate: r.borrowedDate.toISOString(),
       returnDate: r.returnDate.toISOString(),
-      status: r.status,
+      status: resolveLoanStatus(r.status, r.returnDate),
       createdAt: r.createdAt.toISOString(),
     }));
 

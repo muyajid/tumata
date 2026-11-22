@@ -8,7 +8,7 @@ export interface CreateLoanReq {
   returnDate: string;
 }
 
-type LoanStatus = "pending" | "borrowed" | "rejected" | "returned" | "overdue";
+export type LoanStatus = "pending" | "borrowed" | "rejected" | "returned" | "overdue";
 
 export interface CreateLoanRes {
   code: string;
