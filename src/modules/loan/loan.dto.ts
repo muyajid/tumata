@@ -8,7 +8,12 @@ export interface CreateLoanReq {
   returnDate: string;
 }
 
-export type LoanStatus = "pending" | "borrowed" | "rejected" | "returned" | "overdue";
+export type LoanStatus =
+  | "pending"
+  | "borrowed"
+  | "rejected"
+  | "returned"
+  | "overdue";
 
 export interface CreateLoanRes {
   code: string;
@@ -23,28 +28,26 @@ export interface GetLoanReq {
 export interface LoanRes {
   id: string;
   code: string;
+
   user: {
     username: string;
     phone: string;
     email: string;
   };
-  unit: {
-    code: string;
-    imgUrl: string;
-    item: {
-      name: string;
-    };
-  };
+
+  unitCode: string;
+  itemName: string;
+  locationName?: string;
+
   borrowedDate: string;
   returnDate: string;
-  purpose?: string;
   actualReturnDate?: string;
-  processedBy?: {
-    name: string;
-  };
-  checkedBy?: {
-    name: string;
-  };
+
+  purpose?: string;
+  processedBy?: { username: string } | null;
+  checkedBy?: { username: string } | null;
+  returnImages?: string[] | null;
+
   status: LoanStatus;
   createdAt: string;
 }

@@ -19,7 +19,6 @@ import {
   PatchItemReq,
   PatchLocationReq,
   SkippedItem,
-  UnitRes,
 } from "./inventory.dto";
 import { createItemCode } from "../../utils/code.util";
 import { createUnits } from "../../utils/unit.util";

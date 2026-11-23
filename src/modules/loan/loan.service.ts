@@ -1,7 +1,15 @@
 import { and, eq, gte, inArray, lte, sql, count, desc } from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
-import { items, loanCounters, loans, units, users } from "../../db/schema";
+import {
+  items,
+  loanCounters,
+  loans,
+  locations,
+  returnImages,
+  units,
+  users,
+} from "../../db/schema";
 import { createError } from "../../exceptions/error.exception";
 import {
   CreateLoanReq,
@@ -10,6 +18,7 @@ import {
   GetLoanRes,
   LoanRes,
 } from "./loan.dto";
+import { alias } from "drizzle-orm/pg-core";
 import { resolveLoanStatus } from "../../utils/loan.util";
 
 const createLoanCode = async (tx: any): Promise<string> => {
@@ -117,18 +126,19 @@ export const getLoans = async (
         .select({
           id: loans.id,
           code: loans.code,
+
           user: {
             username: users.username,
             phone: users.phone,
             email: users.email,
           },
-          unit: {
-            code: units.code,
-            imgUrl: units.imgUrl,
-            itemName: items.name,
-          },
+
+          unitCode: units.code,
+          itemName: items.name,
+
           borrowedDate: loans.borrowedDate,
           returnDate: loans.returnDate,
+
           status: loans.status,
           createdAt: loans.createdAt,
         })
@@ -140,25 +150,27 @@ export const getLoans = async (
         .orderBy(desc(loans.createdAt))
         .limit(limit)
         .offset(skip),
-
-      db.select({ total: count() }).from(loans).where(whereCondition),
+      db
+        .select({
+          total: count(),
+        })
+        .from(loans)
+        .where(whereCondition),
     ]);
 
-    const data: LoanRes[] = rows.map((r) => ({
-      id: r.id,
-      code: r.code,
-      user: r.user,
-      unit: {
-        code: r.unit.code,
-        imgUrl: r.unit.imgUrl ?? "",
-        item: {
-          name: r.unit.itemName,
-        },
-      },
-      borrowedDate: r.borrowedDate.toISOString(),
-      returnDate: r.returnDate.toISOString(),
-      status: resolveLoanStatus(r.status, r.returnDate),
-      createdAt: r.createdAt.toISOString(),
+    const data: LoanRes[] = rows.map((i) => ({
+      id: i.id,
+      code: i.code,
+
+      user: i.user,
+      unitCode: i.unitCode,
+      itemName: i.itemName,
+
+      borrowedDate: i.borrowedDate.toISOString(),
+      returnDate: i.returnDate.toISOString(),
+      status: resolveLoanStatus(i.status, i.returnDate),
+
+      createdAt: i.createdAt.toISOString(),
     }));
 
     const total = totalData[0].total;
@@ -177,6 +189,85 @@ export const getLoans = async (
     };
   } catch (err) {
     logger.error(err, "Get loans error");
+    throw err;
+  }
+};
+
+export const getLoanById = async (
+  id: string,
+  userId?: string,
+): Promise<LoanRes> => {
+  try {
+    const processedByUser = alias(users, "processedByUser");
+    const checkedByUser = alias(users, "checkedByUser");
+
+    const [loanRow, images] = await Promise.all([
+      db
+        .select({
+          id: loans.id,
+          code: loans.code,
+
+          user: {
+            username: users.username,
+            phone: users.phone,
+            email: users.email,
+          },
+
+          unitCode: units.code,
+          itemName: items.name,
+          locationName: locations.name,
+
+          borrowedDate: loans.borrowedDate,
+          returnDate: loans.returnDate,
+          actualReturnDate: loans.actualReturnDate,
+
+          purpose: loans.purpose,
+
+          processedBy: {
+            username: processedByUser.username,
+          },
+
+          checkedBy: {
+            username: checkedByUser.username,
+          },
+
+          status: loans.status,
+          createdAt: loans.createdAt,
+        })
+        .from(loans)
+        .innerJoin(users, eq(loans.userId, users.id))
+        .innerJoin(units, eq(loans.unitId, units.id))
+        .innerJoin(items, eq(units.itemId, items.id))
+        .innerJoin(locations, eq(items.locationId, locations.id))
+        .leftJoin(processedByUser, eq(loans.processedBy, processedByUser.id))
+        .leftJoin(checkedByUser, eq(loans.checkedBy, checkedByUser.id))
+        .where(
+          and(userId ? eq(loans.userId, userId) : undefined, eq(loans.id, id)),
+        )
+        .limit(1),
+      db
+        .select({ imgUrl: returnImages.imgUrl })
+        .from(returnImages)
+        .where(eq(returnImages.loanId, id)),
+    ]);
+
+    const loan = loanRow[0];
+
+    if (!loan) {
+      throw createError(404, "Peminjaman tidak ditemukan");
+    }
+
+    return {
+      ...loan,
+      borrowedDate: loan.borrowedDate.toISOString(),
+      returnDate: loan.returnDate.toISOString(),
+      actualReturnDate: loan.actualReturnDate?.toISOString() ?? undefined,
+      createdAt: loan.createdAt.toISOString(),
+      status: resolveLoanStatus(loan.status, loan.returnDate),
+      returnImages: images.map((image) => image.imgUrl),
+    };
+  } catch (err) {
+    logger.error(err, "Get loan by id error");
     throw err;
   }
 };
