@@ -8,6 +8,7 @@ export const loanCreate = asyncHandler(async (req: Request, res: Response) => {
   const user = getUserPayload(req);
 
   const isAdmin = user.role === "Super Admin" || user.role === "Admin";
+  console.log(req.body.userId);
   if (isAdmin && !req.body.userId) {
     throw createError(400, "Id pengguna yang ingin meminjam dibutuhkan");
   }
@@ -31,12 +32,23 @@ export const loanCreate = asyncHandler(async (req: Request, res: Response) => {
 export const loanGet = asyncHandler(async (req: Request, res: Response) => {
   const limit = Number(req.query.limit) || 10;
   const page = Number(req.query.page) || 1;
+  const { search, dateType, dateFrom, dateTo } = req.query;
 
   const user = getUserPayload(req);
   const userId =
     user.role == "Admin" || user.role == "Super Admin" ? undefined : user.id;
 
-  const result = await getLoans({ limit, page }, userId);
+  const result = await getLoans(
+    {
+      limit,
+      page,
+      search: search as string,
+      dateType: dateType as string,
+      dateFrom: dateFrom as string,
+      dateTo: dateTo as string,
+    },
+    userId,
+  );
   return res.status(200).json({
     success: true,
     message: "Loan retrivied successfully",
@@ -55,6 +67,6 @@ export const loanGetById = asyncHandler(async (req: Request, res: Response) => {
   return res.status(200).json({
     success: true,
     message: "Loan retrivied successfully",
-    data: result
-  })
-})
+    data: result,
+  });
+});

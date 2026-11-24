@@ -21,7 +21,7 @@ router.post(
   validate(postUserSchema),
   userCreate,
 );
-router.get("/", authorize("Super Admin"), userGet);
+router.get("/", authorize("Super Admin", "Admin"), userGet);
 router.post(
   "/import",
   authorize("Super Admin"),

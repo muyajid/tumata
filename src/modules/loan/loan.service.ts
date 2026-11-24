@@ -1,4 +1,16 @@
-import { and, eq, gte, inArray, lte, sql, count, desc } from "drizzle-orm";
+import {
+  and,
+  eq,
+  gte,
+  inArray,
+  lte,
+  sql,
+  count,
+  desc,
+  or,
+  ilike,
+  lt,
+} from "drizzle-orm";
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import {
@@ -94,6 +106,7 @@ export const createLoan = async (
           purpose: py.purpose,
           borrowedDate: dateBorrowed,
           returnDate: dateReturned,
+          status: isAdmin ? "borrowed" : "pending",
         })
         .returning({
           code: loans.code,
@@ -116,10 +129,29 @@ export const getLoans = async (
   userId?: string,
 ): Promise<GetLoanRes> => {
   try {
-    const { limit, page } = py;
+    const { limit, page, search, dateType, dateFrom, dateTo } = py;
 
+    const dateColom =
+      dateType == "return" ? loans.returnDate : loans.borrowedDate;
+    const dateCondition = and(
+      dateFrom ? gte(dateColom, new Date(dateFrom)) : undefined,
+
+      dateTo
+        ? lt(dateColom, new Date(new Date(dateTo).getTime() + 86400000))
+        : undefined,
+    );
     const skip = (page - 1) * limit;
-    const whereCondition = userId ? eq(loans.userId, userId) : undefined;
+    const whereCondition = and(
+      search
+        ? or(
+            ilike(loans.code, `%${search}%`),
+            ilike(users.username, `%${search}%`),
+            ilike(items.name, `%${search}%`),
+          )
+        : undefined,
+      userId ? eq(loans.userId, userId) : undefined,
+      dateCondition,
+    );
 
     const [rows, totalData] = await Promise.all([
       db
@@ -155,6 +187,9 @@ export const getLoans = async (
           total: count(),
         })
         .from(loans)
+        .innerJoin(users, eq(loans.userId, users.id))
+        .innerJoin(units, eq(loans.unitId, units.id))
+        .innerJoin(items, eq(units.itemId, items.id))
         .where(whereCondition),
     ]);
 

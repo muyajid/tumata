@@ -23,6 +23,10 @@ export interface CreateLoanRes {
 export interface GetLoanReq {
   limit: number;
   page: number;
+  search?: string;
+  dateType?: string;
+  dateFrom?: string;
+  dateTo?: string;
 }
 
 export interface LoanRes {
@@ -65,6 +69,9 @@ export interface GetLoanRes {
 }
 
 export const postLoanSchema = Joi.object({
+  userId: Joi.string().uuid().optional().messages({
+    "string.guid": "Id pengguna tidak valid",
+  }),
   unitId: Joi.string().trim().required().messages({
     "string.empty": "Id unit tidak boleh kosong",
     "any.required": "Id unit wajib diisi",
