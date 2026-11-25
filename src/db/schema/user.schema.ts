@@ -1,4 +1,11 @@
-import { pgEnum, pgTable, uuid, varchar, timestamp, boolean } from "drizzle-orm/pg-core";
+import {
+  pgEnum,
+  pgTable,
+  uuid,
+  varchar,
+  timestamp,
+  boolean,
+} from "drizzle-orm/pg-core";
 
 export const userRole = pgEnum("userRole", ["Super Admin", "Admin", "User"]);
 
@@ -10,8 +17,10 @@ export const users = pgTable("users", {
   role: userRole("role").default("User").notNull(),
   password: varchar("password", { length: 100 }).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt")
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" })
     .defaultNow()
     .$onUpdate(() => new Date())
     .notNull(),

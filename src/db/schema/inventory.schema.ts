@@ -14,23 +14,31 @@ export const departments = pgTable("departments", {
   id: uuid("id").defaultRandom().primaryKey(),
   name: varchar("name", { length: 100 }).notNull().unique(),
   code: varchar("code", { length: 50 }).notNull().unique(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" })
+    .defaultNow()
+    .notNull(),
 });
 
 export const locations = pgTable(
   "locations",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    name: varchar("name", { length: 100 }).notNull().unique(),
+    name: varchar("name", { length: 100 }).notNull(),
     code: varchar("code", { length: 50 }).notNull().unique(),
     departmentId: uuid("departmentId")
       .notNull()
       .references(() => departments.id, {
         onDelete: "cascade",
       }),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [index("idx_location_departmentId").on(table.departmentId)],
 );
@@ -60,8 +68,12 @@ export const items = pgTable(
       .references(() => locations.id),
     procurementYear: integer("procurementYear").notNull(),
     description: varchar("description", { length: 200 }),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [
     index("idx_item_departmentId").on(table.departmentId),
@@ -86,8 +98,12 @@ export const units = pgTable(
     imgUrl: varchar("imgUrl", { length: 255 }),
     status: unitStatus("status").default("Tersedia").notNull(),
     isArchived: boolean("isArchived").default(false).notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [index("idx_unit_itemId").on(table.itemId)],
 );

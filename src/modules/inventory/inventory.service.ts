@@ -27,7 +27,11 @@ import {
   parseXLSXToJson,
   validateRows,
 } from "../../utils/xlsx.util";
-import { createImage, updateImage } from "../image/image.service";
+import {
+  buildImageURL,
+  createImage,
+  updateImage,
+} from "../image/image.service";
 
 // --- Department and locations
 export const createDepartment = async (
@@ -107,7 +111,10 @@ export const createLocation = async (
     }
 
     const isExist = await db.query.locations.findFirst({
-      where: or(eq(locations.name, py.name), eq(locations.code, py.code)),
+      where: and(
+        eq(locations.departmentId, py.departmentId),
+        or(eq(locations.name, py.name), eq(locations.code, py.code)),
+      ),
     });
 
     if (isExist) {
@@ -416,6 +423,10 @@ export const getItemById = async (id: string): Promise<ItemRes> => {
 
     return {
       ...item,
+      units: item.units.map((unit) => ({
+        ...unit,
+        imgUrl: buildImageURL(unit.imgUrl),
+      })),
       createdAt: item.createdAt.toISOString(),
       updatedAt: item.updatedAt.toISOString(),
     };

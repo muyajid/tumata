@@ -11,10 +11,12 @@ import { units } from "./inventory.schema";
 import { users } from "./user.schema";
 
 export const loanStatus = pgEnum("loanStatus", [
-  "pending",
-  "borrowed",
-  "rejected",
-  "returned",
+  "Menunggu",
+  "Disetujui",
+  "Ditolak",
+  "Dipinjam",
+  "Dikembalikan",
+  "Dibatalkan",
 ]);
 
 export const loans = pgTable(
@@ -32,11 +34,16 @@ export const loans = pgTable(
     borrowedDate: timestamp("borrowedDate").notNull(),
     returnDate: timestamp("returnDate").notNull(),
     actualReturnDate: timestamp("actualReturnDate"),
-    status: loanStatus("status").default("pending").notNull(),
+    status: loanStatus("status").default("Menunggu").notNull(),
     processedBy: uuid("processedBy").references(() => users.id),
     checkedBy: uuid("checkedBy").references(() => users.id),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
-    updatedAt: timestamp("updatedAt")
+    handedOverBy: uuid("handedOverBy").references(() => users.id),
+    handedOverAt: timestamp("handedOverAt"),
+    rejectedReason: varchar("rejectedReason", { length: 255 }),
+    createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true, mode: "date" })
       .defaultNow()
       .$onUpdate(() => new Date())
       .notNull(),
@@ -56,7 +63,9 @@ export const returnImages = pgTable(
       .notNull()
       .references(() => loans.id, { onDelete: "cascade" }),
     imgUrl: varchar("imgUrl", { length: 255 }).notNull(),
-    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
+      .defaultNow()
+      .notNull(),
   },
   (table) => [index("idx_returnImages_loanId").on(table.loanId)],
 );

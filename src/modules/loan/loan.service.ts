@@ -14,6 +14,7 @@ import {
 import { db } from "../../configs/db.config";
 import logger from "../../configs/logger";
 import {
+  departments,
   items,
   loanCounters,
   loans,
@@ -28,10 +29,13 @@ import {
   CreateLoanRes,
   GetLoanReq,
   GetLoanRes,
+  LoanActionReq,
+  LoanActionRes,
   LoanRes,
 } from "./loan.dto";
 import { alias } from "drizzle-orm/pg-core";
 import { resolveLoanStatus } from "../../utils/loan.util";
+import { buildImageURL } from "../image/image.service";
 
 const createLoanCode = async (tx: any): Promise<string> => {
   const year = new Date().getFullYear();
@@ -54,9 +58,46 @@ const createLoanCode = async (tx: any): Promise<string> => {
   return `PJM.${year}.${number}`;
 };
 
+const assertUnitUsable = async (tx: any, id: string) => {
+  const [unit] = await tx
+    .select()
+    .from(units)
+    .where(eq(units.id, id))
+    .for("update");
+
+  if (!unit) throw createError(404, "Unit tidak ditemukan");
+  if (unit.isArchived) throw createError(400, "Unit sudah diarsipkan");
+  if (unit.status !== "Tersedia") {
+    throw createError(400, "Unit sedang tidak tersedia");
+  }
+  return unit;
+};
+
+const assertUnitNotBorrowed = async (tx: any, unitId: string) => {
+  const [stillBorrowed] = await tx
+    .select({
+      code: loans.code,
+      username: users.username,
+      returnDate: loans.returnDate,
+    })
+    .from(loans)
+    .innerJoin(users, eq(loans.userId, users.id))
+    .where(and(eq(loans.unitId, unitId), eq(loans.status, "Dipinjam")))
+    .limit(1);
+
+  if (stillBorrowed) {
+    throw createError(409, "Unit masih dipinjam dan belum dikembalikan", {
+      code: stillBorrowed.code,
+      username: stillBorrowed.username,
+      returnDate: stillBorrowed.returnDate.toISOString(),
+    });
+  }
+};
+
 export const createLoan = async (
   py: CreateLoanReq,
   isAdmin: boolean,
+  adminId?: string,
 ): Promise<CreateLoanRes> => {
   try {
     const dateBorrowed = new Date(py.borrowedDate);
@@ -70,23 +111,12 @@ export const createLoan = async (
     }
 
     const loan = await db.transaction(async (tx) => {
-      const [unit] = await tx
-        .select()
-        .from(units)
-        .where(eq(units.id, py.unitId))
-        .for("update");
-
-      if (!unit) throw createError(404, "Unit tidak ditemukan");
-
-      if (unit.status !== "Tersedia") {
-        throw createError(400, "Unit sedang tidak tersedia");
-      }
-      if (unit.isArchived) throw createError(400, "Unit sudah diarsipkan");
+      await assertUnitUsable(tx, py.unitId);
 
       const conflict = await tx.query.loans.findFirst({
         where: and(
           eq(loans.unitId, py.unitId),
-          inArray(loans.status, ["pending", "borrowed"]),
+          inArray(loans.status, ["Menunggu", "Dipinjam", "Disetujui"]),
           lte(loans.borrowedDate, dateReturned),
           gte(loans.returnDate, dateBorrowed),
         ),
@@ -94,9 +124,9 @@ export const createLoan = async (
 
       if (conflict)
         throw createError(400, "Unit tidak tersedia pada waktu tersebut");
+      if (isAdmin) await assertUnitNotBorrowed(tx, py.unitId);
 
       const code = await createLoanCode(tx);
-
       const [created] = await tx
         .insert(loans)
         .values({
@@ -106,7 +136,10 @@ export const createLoan = async (
           purpose: py.purpose,
           borrowedDate: dateBorrowed,
           returnDate: dateReturned,
-          status: isAdmin ? "borrowed" : "pending",
+          status: isAdmin ? "Dipinjam" : "Menunggu",
+          handedOverBy: isAdmin ? adminId : undefined,
+          handedOverAt: isAdmin ? new Date() : undefined,
+          processedBy: isAdmin ? adminId : undefined
         })
         .returning({
           code: loans.code,
@@ -235,6 +268,7 @@ export const getLoanById = async (
   try {
     const processedByUser = alias(users, "processedByUser");
     const checkedByUser = alias(users, "checkedByUser");
+    const handedOverByUser = alias(users, "handedOverByUser");
 
     const [loanRow, images] = await Promise.all([
       db
@@ -249,8 +283,10 @@ export const getLoanById = async (
           },
 
           unitCode: units.code,
+          unitImgUrl: units.imgUrl,
           itemName: items.name,
           locationName: locations.name,
+          departmentCode: departments.code,
 
           borrowedDate: loans.borrowedDate,
           returnDate: loans.returnDate,
@@ -266,16 +302,25 @@ export const getLoanById = async (
             username: checkedByUser.username,
           },
 
+          handedOverBy: {
+            username: handedOverByUser.username,
+          },
+          handedOverAt: loans.handedOverAt,
+          rejectedReason: loans.rejectedReason,
+
           status: loans.status,
           createdAt: loans.createdAt,
+          updatedAt: loans.updatedAt
         })
         .from(loans)
         .innerJoin(users, eq(loans.userId, users.id))
         .innerJoin(units, eq(loans.unitId, units.id))
         .innerJoin(items, eq(units.itemId, items.id))
         .innerJoin(locations, eq(items.locationId, locations.id))
+        .innerJoin(departments, eq(locations.departmentId, departments.id))
         .leftJoin(processedByUser, eq(loans.processedBy, processedByUser.id))
         .leftJoin(checkedByUser, eq(loans.checkedBy, checkedByUser.id))
+        .leftJoin(handedOverByUser, eq(loans.handedOverBy, handedOverByUser.id))
         .where(
           and(userId ? eq(loans.userId, userId) : undefined, eq(loans.id, id)),
         )
@@ -294,15 +339,164 @@ export const getLoanById = async (
 
     return {
       ...loan,
+      unitImgUrl: buildImageURL(loan.unitImgUrl),
       borrowedDate: loan.borrowedDate.toISOString(),
       returnDate: loan.returnDate.toISOString(),
-      actualReturnDate: loan.actualReturnDate?.toISOString() ?? undefined,
-      createdAt: loan.createdAt.toISOString(),
-      status: resolveLoanStatus(loan.status, loan.returnDate),
+      actualReturnDate: loan.actualReturnDate?.toISOString() ?? null,
+      handedOverAt: loan.handedOverAt?.toISOString() ?? null,
+      rejectedReason: loan.rejectedReason ?? null,
       returnImages: images.map((image) => image.imgUrl),
+      createdAt: loan.createdAt.toISOString(),
+      updatedAt: loan.updatedAt.toISOString(),
+      status: resolveLoanStatus(loan.status, loan.returnDate),
     };
   } catch (err) {
     logger.error(err, "Get loan by id error");
+    throw err;
+  }
+};
+
+const getLoanForUpdate = async (tx: any, id: string) => {
+  const [loan] = await tx
+    .select()
+    .from(loans)
+    .where(eq(loans.id, id))
+    .for("update");
+
+  if (!loan) throw createError(404, "Peminjaman tidak ditemukan");
+  return loan;
+};
+
+export const approveLoanById = async (
+  py: LoanActionReq,
+): Promise<LoanActionRes> => {
+  try {
+    const result = await db.transaction(async (tx) => {
+      const loan = await getLoanForUpdate(tx, py.id);
+
+      if (loan.status !== "Menunggu") {
+        throw createError(
+          400,
+          "Hanya pengajuan berstatus Menunggu yang dapat disetujui",
+        );
+      }
+
+      await assertUnitUsable(tx, loan.unitId);
+      const [updated] = await tx
+        .update(loans)
+        .set({
+          status: "Disetujui",
+          processedBy: py.adminId,
+        })
+        .where(eq(loans.id, py.id))
+        .returning({
+          code: loans.code,
+          status: loans.status,
+          userId: loans.userId,
+        });
+      return updated;
+    });
+    logger.info(`Pengajuan disetujui notif dikirim ke user ${result.userId}`);
+    return { code: result.code, status: result.status };
+  } catch (err) {
+    logger.error(err, "Approve loan by id error");
+    throw err;
+  }
+};
+
+export const rejectLoanById = async (
+  py: LoanActionReq,
+  reason: string,
+): Promise<LoanActionRes> => {
+  try {
+    const result = await db.transaction(async (tx) => {
+      const loan = await getLoanForUpdate(tx, py.id);
+
+      if (loan.status !== "Menunggu") {
+        throw createError(
+          400,
+          "Hanya pengajuan berstatus Menunggu yang dapat ditolak",
+        );
+      }
+      const [updated] = await tx
+        .update(loans)
+        .set({
+          status: "Ditolak",
+          processedBy: py.adminId,
+          rejectedReason: reason,
+        })
+        .where(eq(loans.id, py.id))
+        .returning({
+          code: loans.code,
+          status: loans.status,
+          userId: loans.userId,
+        });
+      return updated;
+    });
+    logger.info(`Pengajuan ditolak notif dikirim ke user ${result.userId}`);
+    return { code: result.code, status: result.status };
+  } catch (err) {
+    logger.error(err, "Reject loan by id error");
+    throw err;
+  }
+};
+
+export const handOverLoanById = async (
+  py: LoanActionReq,
+): Promise<LoanActionRes> => {
+  try {
+    const result = await db.transaction(async (tx) => {
+      const loan = await getLoanForUpdate(tx, py.id);
+
+      if (loan.status !== "Disetujui") {
+        throw createError(
+          400,
+          "Hanya peminjaman berstatus Disetujui yang dapat diserahkan",
+        );
+      }
+
+      await assertUnitUsable(tx, loan.unitId);
+      const [stillBorrowed] = await tx
+        .select({
+          code: loans.code,
+          username: users.username,
+          returnDate: loans.returnDate,
+          status: loans.status
+        })
+        .from(loans)
+        .innerJoin(users, eq(loans.userId, users.id))
+        .where(and(eq(loans.unitId, loan.unitId), eq(loans.status, "Dipinjam")))
+        .limit(1);
+
+      if (stillBorrowed) {
+        throw createError(409, "Unit masih dipinjam dan belum dikembalikan", {
+          code: stillBorrowed.code,
+          username: stillBorrowed.username,
+          returnDate: stillBorrowed.returnDate.toISOString(),
+        });
+      }
+
+      const [updated] = await tx
+        .update(loans)
+        .set({
+          status: "Dipinjam",
+          handedOverBy: py.adminId,
+          handedOverAt: new Date(),
+        })
+        .where(eq(loans.id, py.id))
+        .returning({
+          code: loans.code,
+          status: loans.status,
+          userId: loans.userId,
+        });
+
+      return updated;
+    });
+
+    logger.info(`Barang diserahkan, notif dikirim ke user ${result.userId}`);
+    return { code: result.code, status: result.status };
+  } catch (err) {
+    logger.error(err, "Hand over loan by id error");
     throw err;
   }
 };

@@ -21,6 +21,7 @@ app.use(
 );
 
 app.use(requestLogMiddleware);
+app.use("/images", express.static(`${process.cwd()}/public/images`));
 
 app.get("/", (req: Request, res: Response) => {
   return res.json({

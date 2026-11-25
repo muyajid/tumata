@@ -7,18 +7,16 @@ export interface CreateLoanReq {
   borrowedDate: string;
   returnDate: string;
 }
+export type CreateLoanRes = LoanActionRes;
 
 export type LoanStatus =
-  | "pending"
-  | "borrowed"
-  | "rejected"
-  | "returned"
-  | "overdue";
-
-export interface CreateLoanRes {
-  code: string;
-  status: LoanStatus;
-}
+  | "Menunggu"
+  | "Disetujui"
+  | "Ditolak"
+  | "Dipinjam"
+  | "Dikembalikan"
+  | "Dibatalkan"
+  | "Terlambat";
 
 export interface GetLoanReq {
   limit: number;
@@ -40,20 +38,26 @@ export interface LoanRes {
   };
 
   unitCode: string;
+  unitImgUrl?: string | null; 
   itemName: string;
   locationName?: string;
+  departmentName?: string;
 
   borrowedDate: string;
   returnDate: string;
-  actualReturnDate?: string;
+  actualReturnDate?: string | null;
 
   purpose?: string;
   processedBy?: { username: string } | null;
   checkedBy?: { username: string } | null;
+  handedOverBy?: { username: string } | null;
+  handedOverAt?: string | null;
+  rejectedReason?: string | null;
   returnImages?: string[] | null;
 
   status: LoanStatus;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface GetLoanRes {
@@ -66,6 +70,16 @@ export interface GetLoanRes {
     total: number;
     totalPages: number;
   };
+}
+
+export interface LoanActionReq {
+  id: string;
+  adminId: string;
+}
+
+export interface LoanActionRes {
+  code: string;
+  status: LoanStatus;
 }
 
 export const postLoanSchema = Joi.object({
@@ -94,4 +108,12 @@ export const postLoanSchema = Joi.object({
       "date.greater": "Tanggal pengembalian harus setelah tanggal mulai pinjam",
       "any.required": "Tanggal pengembalian wajib diisi",
     }),
+});
+
+export const rejectLoanSchema = Joi.object({
+  reason: Joi.string().max(255).required().messages({
+    "string.empty": "Alasan penolakan tidak boleh kosong",
+    "string.max": "Alasan penolakan maksimal 255 karakter",
+    "any.required": "Alasan penolakan wajib diisi",
+  }),
 });

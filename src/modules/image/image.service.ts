@@ -71,3 +71,13 @@ export const updateImage = async (
     throw err;
   }
 };
+
+export function buildImageURL(path: string | null): string | null {
+  if (!path) return null;
+  if (/^https?:\/\//i.test(path)) return path;
+
+  const base = process.env.BASE_URL?.replace(/\/$/, "");
+  if (!base) throw new Error("BASE_URL belum diatur");
+
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
