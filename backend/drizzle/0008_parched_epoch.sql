@@ -1,3 +1,4 @@
+git commit -m "refactor: restructure backend into monorepo folder"
 CREATE TYPE "public"."loanStatus" AS ENUM('pending', 'borrowed', 'rejected', 'returned');--> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "loans" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
