@@ -24,6 +24,7 @@ export const loans = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     code: varchar("code", { length: 50 }).notNull().unique(),
+
     unitId: uuid("unitId")
       .notNull()
       .references(() => units.id),
@@ -31,15 +32,45 @@ export const loans = pgTable(
       .notNull()
       .references(() => users.id),
     purpose: varchar("purpose", { length: 255 }).notNull(),
-    borrowedDate: timestamp("borrowedDate").notNull(),
-    returnDate: timestamp("returnDate").notNull(),
-    actualReturnDate: timestamp("actualReturnDate"),
+
+    borrowedDate: timestamp("borrowedDate", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    returnDate: timestamp("returnDate", {
+      withTimezone: true,
+      mode: "date",
+    }).notNull(),
+    actualReturnDate: timestamp("actualReturnDate", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
     status: loanStatus("status").default("Menunggu").notNull(),
-    processedBy: uuid("processedBy").references(() => users.id),
-    checkedBy: uuid("checkedBy").references(() => users.id),
-    handedOverBy: uuid("handedOverBy").references(() => users.id),
-    handedOverAt: timestamp("handedOverAt"),
+
+    reviewedBy: uuid("reviewedBy").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    reviewedAt: timestamp("reviewedAt", { withTimezone: true, mode: "date" }),
+
+    handedOverBy: uuid("handedOverBy").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    handedOverAt: timestamp("handedOverAt", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
+    returnCheckedBy: uuid("returnCheckedBy").references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    returnCheckedAt: timestamp("returnCheckedAt", {
+      withTimezone: true,
+      mode: "date",
+    }),
+
     rejectedReason: varchar("rejectedReason", { length: 255 }),
+
     createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
       .defaultNow()
       .notNull(),

@@ -31,7 +31,7 @@ export const locations = pgTable(
     departmentId: uuid("departmentId")
       .notNull()
       .references(() => departments.id, {
-        onDelete: "cascade",
+        onDelete: "restrict",
       }),
     createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })
       .defaultNow()
@@ -62,10 +62,10 @@ export const items = pgTable(
     name: varchar("name", { length: 200 }).notNull(),
     departmentId: uuid("departmentId")
       .notNull()
-      .references(() => departments.id),
+      .references(() => departments.id, { onDelete: "restrict" }),
     locationId: uuid("locationId")
       .notNull()
-      .references(() => locations.id),
+      .references(() => locations.id, { onDelete: "restrict" }),
     procurementYear: integer("procurementYear").notNull(),
     description: varchar("description", { length: 200 }),
     createdAt: timestamp("createdAt", { withTimezone: true, mode: "date" })

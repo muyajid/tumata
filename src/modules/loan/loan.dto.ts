@@ -38,7 +38,7 @@ export interface LoanRes {
   };
 
   unitCode: string;
-  unitImgUrl?: string | null; 
+  unitImgUrl?: string | null;
   itemName: string;
   locationName?: string;
   departmentName?: string;
@@ -48,10 +48,16 @@ export interface LoanRes {
   actualReturnDate?: string | null;
 
   purpose?: string;
-  processedBy?: { username: string } | null;
-  checkedBy?: { username: string } | null;
-  handedOverBy?: { username: string } | null;
+
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+
+  handedOverBy?: string | null;
   handedOverAt?: string | null;
+
+  returnCheckedBy?: string | null;
+  returnCheckedAt?: string | null;
+
   rejectedReason?: string | null;
   returnImages?: string[] | null;
 

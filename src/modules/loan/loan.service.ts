@@ -139,7 +139,8 @@ export const createLoan = async (
           status: isAdmin ? "Dipinjam" : "Menunggu",
           handedOverBy: isAdmin ? adminId : undefined,
           handedOverAt: isAdmin ? new Date() : undefined,
-          processedBy: isAdmin ? adminId : undefined
+          reviewedBy: isAdmin ? adminId : undefined,
+          reviewedAt: isAdmin ? new Date() : undefined
         })
         .returning({
           code: loans.code,
@@ -266,9 +267,9 @@ export const getLoanById = async (
   userId?: string,
 ): Promise<LoanRes> => {
   try {
-    const processedByUser = alias(users, "processedByUser");
-    const checkedByUser = alias(users, "checkedByUser");
+    const reviewedByUser = alias(users, "reviewedByUser");
     const handedOverByUser = alias(users, "handedOverByUser");
+    const returnCheckedByUser = alias(users, "returnCheckedByUser");
 
     const [loanRow, images] = await Promise.all([
       db
@@ -286,7 +287,7 @@ export const getLoanById = async (
           unitImgUrl: units.imgUrl,
           itemName: items.name,
           locationName: locations.name,
-          departmentCode: departments.code,
+          departmentName: departments.name,
 
           borrowedDate: loans.borrowedDate,
           returnDate: loans.returnDate,
@@ -294,23 +295,20 @@ export const getLoanById = async (
 
           purpose: loans.purpose,
 
-          processedBy: {
-            username: processedByUser.username,
-          },
+          reviewedBy: reviewedByUser.username,
+          reviewedAt: loans.reviewedAt,
 
-          checkedBy: {
-            username: checkedByUser.username,
-          },
-
-          handedOverBy: {
-            username: handedOverByUser.username,
-          },
+          handedOverBy: handedOverByUser.username,
           handedOverAt: loans.handedOverAt,
+
+          returnCheckedBy: returnCheckedByUser.username,
+          returnCheckedAt: loans.returnCheckedAt,
+
           rejectedReason: loans.rejectedReason,
 
           status: loans.status,
           createdAt: loans.createdAt,
-          updatedAt: loans.updatedAt
+          updatedAt: loans.updatedAt,
         })
         .from(loans)
         .innerJoin(users, eq(loans.userId, users.id))
@@ -318,9 +316,12 @@ export const getLoanById = async (
         .innerJoin(items, eq(units.itemId, items.id))
         .innerJoin(locations, eq(items.locationId, locations.id))
         .innerJoin(departments, eq(locations.departmentId, departments.id))
-        .leftJoin(processedByUser, eq(loans.processedBy, processedByUser.id))
-        .leftJoin(checkedByUser, eq(loans.checkedBy, checkedByUser.id))
+        .leftJoin(reviewedByUser, eq(loans.reviewedBy, reviewedByUser.id))
         .leftJoin(handedOverByUser, eq(loans.handedOverBy, handedOverByUser.id))
+        .leftJoin(
+          returnCheckedByUser,
+          eq(loans.returnCheckedBy, returnCheckedByUser.id),
+        )
         .where(
           and(userId ? eq(loans.userId, userId) : undefined, eq(loans.id, id)),
         )
@@ -343,7 +344,9 @@ export const getLoanById = async (
       borrowedDate: loan.borrowedDate.toISOString(),
       returnDate: loan.returnDate.toISOString(),
       actualReturnDate: loan.actualReturnDate?.toISOString() ?? null,
+      reviewedAt: loan.reviewedAt?.toISOString() ?? null,
       handedOverAt: loan.handedOverAt?.toISOString() ?? null,
+      returnCheckedAt: loan.returnCheckedAt?.toISOString() ?? null,
       rejectedReason: loan.rejectedReason ?? null,
       returnImages: images.map((image) => image.imgUrl),
       createdAt: loan.createdAt.toISOString(),
@@ -386,7 +389,8 @@ export const approveLoanById = async (
         .update(loans)
         .set({
           status: "Disetujui",
-          processedBy: py.adminId,
+          reviewedBy: py.adminId,
+          reviewedAt: new Date()
         })
         .where(eq(loans.id, py.id))
         .returning({
@@ -422,8 +426,9 @@ export const rejectLoanById = async (
         .update(loans)
         .set({
           status: "Ditolak",
-          processedBy: py.adminId,
-          rejectedReason: reason,
+          reviewedBy: py.adminId,
+          reviewedAt: new Date(),
+          rejectedReason: reason
         })
         .where(eq(loans.id, py.id))
         .returning({

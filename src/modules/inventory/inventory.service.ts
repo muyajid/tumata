@@ -111,9 +111,12 @@ export const createLocation = async (
     }
 
     const isExist = await db.query.locations.findFirst({
-      where: and(
-        eq(locations.departmentId, py.departmentId),
-        or(eq(locations.name, py.name), eq(locations.code, py.code)),
+      where: or(
+        eq(locations.code, py.code),
+        and(
+          eq(locations.departmentId, py.departmentId),
+          eq(locations.name, py.name),
+        ),
       ),
     });
 
@@ -474,10 +477,11 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
       const deptId = deptMap.get(row.jurusan);
       const location = loctMap.get(row.lokasi);
 
-      const reasons = [];
-      if (!deptId) reasons.push("Kode jurusan");
+      const reasons: string[] = [];
+      if (!deptId) reasons.push("Kode jurusan tidak ditemukan");
+
       if (!location) {
-        reasons.push("Kode lokasi");
+        reasons.push("Kode lokasi tidak ditemukan");
       } else if (deptId && location.departmentId !== deptId) {
         reasons.push("Lokasi tidak sesuai dengan jurusan");
       }
@@ -486,7 +490,7 @@ export const importItem = async (data: Buffer): Promise<ImportRes> => {
         skipped.push({
           row: i + 2,
           name: row.nama,
-          reason: `${reasons.join(" dan ")} tidak ditemukan`,
+          reason: reasons.join(", "),
         });
         continue;
       }
