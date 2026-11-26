@@ -35,7 +35,11 @@ import {
 } from "./loan.dto";
 import { alias } from "drizzle-orm/pg-core";
 import { resolveLoanStatus } from "../../utils/loan.util";
-import { buildImageURL } from "../image/image.service";
+import {
+  buildImageURL,
+  createImage,
+  deleteImage,
+} from "../image/image.service";
 
 const createLoanCode = async (tx: any): Promise<string> => {
   const year = new Date().getFullYear();
@@ -140,7 +144,7 @@ export const createLoan = async (
           handedOverBy: isAdmin ? adminId : undefined,
           handedOverAt: isAdmin ? new Date() : undefined,
           reviewedBy: isAdmin ? adminId : undefined,
-          reviewedAt: isAdmin ? new Date() : undefined
+          reviewedAt: isAdmin ? new Date() : undefined,
         })
         .returning({
           code: loans.code,
@@ -348,7 +352,7 @@ export const getLoanById = async (
       handedOverAt: loan.handedOverAt?.toISOString() ?? null,
       returnCheckedAt: loan.returnCheckedAt?.toISOString() ?? null,
       rejectedReason: loan.rejectedReason ?? null,
-      returnImages: images.map((image) => image.imgUrl),
+      returnImages: images.map((image) => buildImageURL(image.imgUrl)!),
       createdAt: loan.createdAt.toISOString(),
       updatedAt: loan.updatedAt.toISOString(),
       status: resolveLoanStatus(loan.status, loan.returnDate),
@@ -390,7 +394,7 @@ export const approveLoanById = async (
         .set({
           status: "Disetujui",
           reviewedBy: py.adminId,
-          reviewedAt: new Date()
+          reviewedAt: new Date(),
         })
         .where(eq(loans.id, py.id))
         .returning({
@@ -428,7 +432,7 @@ export const rejectLoanById = async (
           status: "Ditolak",
           reviewedBy: py.adminId,
           reviewedAt: new Date(),
-          rejectedReason: reason
+          rejectedReason: reason,
         })
         .where(eq(loans.id, py.id))
         .returning({
@@ -466,7 +470,7 @@ export const handOverLoanById = async (
           code: loans.code,
           username: users.username,
           returnDate: loans.returnDate,
-          status: loans.status
+          status: loans.status,
         })
         .from(loans)
         .innerJoin(users, eq(loans.userId, users.id))
@@ -502,6 +506,109 @@ export const handOverLoanById = async (
     return { code: result.code, status: result.status };
   } catch (err) {
     logger.error(err, "Hand over loan by id error");
+    throw err;
+  }
+};
+
+export const cancelLoanById = async (
+  loanId: string,
+  userId: string,
+): Promise<LoanActionRes> => {
+  try {
+    return await db.transaction(async (tx) => {
+      const loan = await getLoanForUpdate(tx, loanId);
+
+      if (loan.userId !== userId) {
+        throw createError(404, "Peminjaman tidak ditemukan");
+      }
+
+      if (loan.status !== "Menunggu") {
+        throw createError(
+          400,
+          "Hanya pengajuan berstatus Menunggu yang dapat dibatalkan",
+        );
+      }
+
+      const [updated] = await tx
+        .update(loans)
+        .set({ status: "Dibatalkan" })
+        .where(eq(loans.id, loanId))
+        .returning({
+          code: loans.code,
+          status: loans.status,
+        });
+
+      return updated;
+    });
+  } catch (err) {
+    logger.error(err, "Cancel loan by id error");
+    throw err;
+  }
+};
+
+export const returnLoanById = async (
+  id: string,
+  adminId: string,
+  images: Buffer[],
+) => {
+  try {
+    if (images.length < 1 || images.length > 3) {
+      throw createError(400, "Foto kondisi barang minimal 1 dan maksimal 3");
+    }
+
+    return await db.transaction(async (tx) => {
+      const loan = await getLoanForUpdate(tx, id);
+
+      if (loan.status !== "Dipinjam") {
+        throw createError(
+          400,
+          "Hanya peminjaman berstatus Dipinjam yang dapat dikonfirmasi pengembaliannya",
+        );
+      }
+
+      const imageUrls = await Promise.all(
+        images.map((img) => createImage(img)),
+      );
+
+      try {
+        const [updated] = await tx
+          .update(loans)
+          .set({
+            status: "Dikembalikan",
+            actualReturnDate: new Date(),
+            returnCheckedBy: adminId,
+            returnCheckedAt: new Date(),
+          })
+          .where(eq(loans.id, id))
+          .returning({
+            code: loans.code,
+            status: loans.status,
+          });
+
+        await tx.insert(returnImages).values(
+          imageUrls.map((imgUrl) => ({
+            loanId: id,
+            imgUrl,
+          })),
+        );
+
+        return updated;
+      } catch (err) {
+        await Promise.all(
+          imageUrls.map((url) =>
+            deleteImage(url).catch((cleanupErr) =>
+              logger.error(
+                { err: cleanupErr, url },
+                "Cleanup return image error",
+              ),
+            ),
+          ),
+        );
+        throw err;
+      }
+    });
+  } catch (err) {
+    logger.error(err, "Confirm return by id error");
     throw err;
   }
 };

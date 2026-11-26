@@ -4,11 +4,13 @@ import { getUserPayload } from "../../utils/token.util";
 import { createError } from "../../exceptions/error.exception";
 import {
   approveLoanById,
+  cancelLoanById,
   createLoan,
   getLoanById,
   getLoans,
   handOverLoanById,
   rejectLoanById,
+  returnLoanById,
 } from "./loan.service";
 
 export const loanCreate = asyncHandler(async (req: Request, res: Response) => {
@@ -118,3 +120,39 @@ export const loanHandOver = asyncHandler(
     });
   },
 );
+
+export const loanCancel = asyncHandler(async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const user = getUserPayload(req);
+
+  const result = await cancelLoanById(id, user.id);
+  return res.status(200).json({
+    success: true,
+    message: "Loan successfully canceled",
+    data: result,
+  });
+});
+
+export const loanReturn = asyncHandler(async (req: Request, res: Response) => {
+  const id = String(req.params.id);
+  const admin = getUserPayload(req);
+
+  const files = req.files as Express.Multer.File[] | undefined;
+
+  if (!files || files.length === 0) {
+    throw createError(400, "Foto kondisi barang wajib diunggah");
+  }
+  if (files.length > 3) {
+    throw createError(400, "Foto kondisi barang maksimal 3");
+  }
+
+  const images = files.map((f) => f.buffer);
+
+  const result = await returnLoanById(id, admin.id, images);
+
+  return res.status(200).json({
+    success: true,
+    message: "Return confirmed successfully",
+    data: result,
+  });
+});
