@@ -30,6 +30,11 @@ route.patch(
 );
 route.patch("/handover/:id", authorize("Super Admin", "Admin"), loanHandOver);
 route.patch("/cancel/:id", authorize("User"), loanCancel);
-route.patch("/return/:id", authorize("Admin", "Super Admin"), importImage.array("images"), loanReturn);
+route.patch(
+  "/return/:id",
+  authorize("Admin", "Super Admin"),
+  importImage.array("images"),
+  loanReturn,
+);
 
 export default route;

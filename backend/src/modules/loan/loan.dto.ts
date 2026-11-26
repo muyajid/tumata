@@ -88,6 +88,10 @@ export interface LoanActionRes {
   status: LoanStatus;
 }
 
+export interface ReturnLoanRes extends LoanActionRes {
+  images: string[]
+}
+
 export const postLoanSchema = Joi.object({
   userId: Joi.string().uuid().optional().messages({
     "string.guid": "Id pengguna tidak valid",

@@ -32,6 +32,7 @@ import {
   LoanActionReq,
   LoanActionRes,
   LoanRes,
+  ReturnLoanRes,
 } from "./loan.dto";
 import { alias } from "drizzle-orm/pg-core";
 import { resolveLoanStatus } from "../../utils/loan.util";
@@ -550,13 +551,9 @@ export const returnLoanById = async (
   id: string,
   adminId: string,
   images: Buffer[],
-) => {
+): Promise<ReturnLoanRes> => {
   try {
-    if (images.length < 1 || images.length > 3) {
-      throw createError(400, "Foto kondisi barang minimal 1 dan maksimal 3");
-    }
-
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const loan = await getLoanForUpdate(tx, id);
 
       if (loan.status !== "Dipinjam") {
@@ -592,7 +589,7 @@ export const returnLoanById = async (
           })),
         );
 
-        return updated;
+        return { ...updated, imageUrls };;
       } catch (err) {
         await Promise.all(
           imageUrls.map((url) =>
@@ -607,6 +604,12 @@ export const returnLoanById = async (
         throw err;
       }
     });
+
+    return {
+      code: result.code,
+      status: result.status,
+      images: result.imageUrls.map((url) => buildImageURL(url)!),
+    };
   } catch (err) {
     logger.error(err, "Confirm return by id error");
     throw err;
