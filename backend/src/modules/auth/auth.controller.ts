@@ -6,7 +6,7 @@ import { getUserPayload } from "../../utils/token.util";
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const result = await authLogin(req.body);
 
-  res.cookie("accessToken", result.accesToken, {
+  res.cookie("accessToken", result.accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",

@@ -32,14 +32,14 @@ export const authLogin = async (py: LoginReq): Promise<LoginRes> => {
       throw createError(401, "Password salah");
     }
 
-    const accesToken = createAuthToken({
+    const accessToken = createAuthToken({
       id: user.id,
       username: user.username,
       role: user.role,
     });
 
     return {
-      accesToken,
+      accessToken,
       role: user.role,
     };
   } catch (err: any) {

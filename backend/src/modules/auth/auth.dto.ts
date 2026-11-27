@@ -7,7 +7,7 @@ export interface LoginReq {
 }
 
 export interface LoginRes {
-    accesToken: string;
+    accessToken: string;
     role: UserRole;
 }
 
