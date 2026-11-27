@@ -11,29 +11,17 @@ export const authenticate = (
   next: NextFunction,
 ) => {
   try {
-    const header = req.headers.authorization;
+    const token = req.cookies?.accessToken;
 
-    if (!header) {
-      return next(createError(400, "Token autentikasi dibutuhkan"));
+    if (!token) {
+      return next(createError(401, "Token autentikasi dibutuhkan"));
     }
 
-    if (!header?.startsWith("Bearer ")) {
+    const verif = verifAuthToken(token);
+
+    if (!verif) {
       return next(
-        createError(400, "Format token tidak valid gunakan Bearer <token>"),
-      );
-    }
-
-    const bearer = header.split(" ")[1];
-
-    if (!bearer) {
-      return next(createError(400, "Token autentikasi dibutuhkan"));
-    }
-
-    const verif = verifAuthToken(bearer);
-
-    if (!verif || verif == null) {
-      return next(
-        createError(400, "Token authentikasi salah atau sudah kadaluwarsa"),
+        createError(401, "Token autentikasi salah atau sudah kadaluwarsa"),
       );
     }
 
@@ -43,7 +31,7 @@ export const authenticate = (
     next();
   } catch (err: any) {
     logger.error(err, "Error on auth middleware");
-    throw err;
+    return next(createError(401, "Token autentikasi tidak valid"));
   }
 };
 

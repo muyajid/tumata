@@ -6,6 +6,14 @@ import { getUserPayload } from "../../utils/token.util";
 export const login = asyncHandler(async (req: Request, res: Response) => {
   const result = await authLogin(req.body);
 
+  res.cookie("accessToken", result.accesToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 24 * 60 * 60 * 1000,
+    path: "/",
+  });
+
   return res.status(200).json({
     success: true,
     message: "Login berhasil",
@@ -26,3 +34,14 @@ export const getCurrentUser = asyncHandler(
     });
   },
 );
+
+export const logout = asyncHandler(async (_req: Request, res: Response) => {
+  res.clearCookie("accessToken", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+  });
+
+  return res.status(200).json({ success: true, message: "Logout berhasil" });
+});
